@@ -1,0 +1,42 @@
+name: Validate laboratory
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --ignore-scripts; fi
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Static safeguards
+        run: |
+          ! grep -R "Math.random()" src
+          ! grep -R -E "fetch\\(|XMLHttpRequest|WebSocket|https?://" src
+          ! grep -R -i "blood ring.*halo\|halo.*blood ring" src docs README.md 2>/dev/null
+          git diff --check
+      - name: Export build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: laboratory-build
+          path: |
+            dist/
+            package-lock.json
+          if-no-files-found: error
