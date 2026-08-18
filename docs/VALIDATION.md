@@ -33,7 +33,7 @@ The Vitest suite covers:
 - stable process results despite incidental `Map` insertion order;
 - Cloudmaw modeled-water conservation;
 - Gorevault pipeline mass conservation;
-- source-removal attribution against an environmental control world;
+- full convertible-material closure through harvestable pools, environmental residue, Gorevault inventory, and Ringthroat/orbital inventory;
 - Ringthroat downstream material conservation;
 - exact hash restoration after rewind;
 - deterministic replay from an earlier snapshot;
@@ -52,14 +52,20 @@ CI rejects:
 
 ## Environment note — 2026-08-18
 
-The local build container can execute Node/npm/Git but cannot resolve external hosts, so it cannot install the pinned npm dependencies directly. The GitHub connector has verified write access to the repository. Validation is therefore run in GitHub Actions after publication of the source checkpoint. The workflow exports `dist/` and `package-lock.json` as evidence artifacts. Those results must be recorded below after the workflow runs.
+The local build container can execute Node/npm/Git but cannot resolve external hosts, so it cannot install the pinned npm dependencies directly. The GitHub connector has verified write access to the repository. A validation workflow is present in `.github/workflows/validate.yml`, but no workflow status has been observable through the available connector for the published commits yet. Dependency-backed claims therefore remain unverified until a runner result exists.
 
 ## Current evidence
 
-- Repository identity: verified through GitHub connector.
-- Local source presence: verified.
-- Typecheck: pending remote CI.
-- Tests: pending remote CI.
-- Production build: pending remote CI.
-- Browser journey A–G: pending runnable-browser evidence.
-- Publication of application source: pending.
+- Repository identity and connector-backed source publication: **PASS**.
+- Authoritative simulation strict compile: **PASS** using the locally available TypeScript 5.8.3 compiler with `strict` and `noUncheckedIndexedAccess`; renderer/UI modules remain outside this dependency-free compile.
+- Executable simulation smoke suite: **PASS** for seeded determinism, simulation determinism, Ringthroat starvation, stable process ordering, Cloudmaw water conservation, Gorevault pipeline conservation, full convertible-material conservation, Ringthroat downstream flow, exact snapshot restore, deterministic replay, branch equality, branch divergence, and numerical comparison.
+- Measured Cloudmaw water drift after 120 ticks: `0.00004740798135571822`, below the declared `1e-3` tolerance.
+- Measured Gorevault pipeline error: approximately `6.04e-14`.
+- Measured whole convertible-material system error with Gorevault + Cloudmaw: approximately `-3.98e-7`.
+- Measured whole system error after Gorevault + Ringthroat transfer: approximately `1.52e-6`.
+- Local static safeguards for authoritative randomness, runtime networking, and forbidden Blood Ring wording: **PASS**.
+- Full project typecheck with pinned dependencies: **UNVERIFIED** — dependencies cannot be installed in the current local runtime and no GitHub runner result is exposed yet.
+- Vitest suite under the pinned dependency set: **UNVERIFIED** for the same reason; equivalent direct Node assertions over the compiled authoritative simulation are PASS.
+- Production Vite build: **UNVERIFIED**.
+- Browser journey A–G: **UNVERIFIED**; Chromium exists locally, but no dependency-backed bundle is available in the current runtime.
+- `package-lock.json`: **PENDING**; it cannot be generated without dependency installation.
