@@ -33,6 +33,7 @@ export class PlanetState implements PlanetStateData {
   orbital: OrbitalInventory = emptyOrbital();
   totalWater = 0;
   initialConvertibleMass = 0;
+  environmentalResidueMass = 0;
 
   constructor(seed: number) { this.seed = seed >>> 0; }
 
@@ -50,6 +51,7 @@ export class PlanetState implements PlanetStateData {
     copy.orbital = { ...this.orbital };
     copy.totalWater = this.totalWater;
     copy.initialConvertibleMass = this.initialConvertibleMass;
+    copy.environmentalResidueMass = this.environmentalResidueMass;
     return copy;
   }
 }

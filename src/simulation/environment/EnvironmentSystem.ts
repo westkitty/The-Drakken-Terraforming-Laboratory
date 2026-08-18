@@ -17,12 +17,19 @@ export function updateEnvironment(state: PlanetState, tick: number): void {
     const flood = Math.max(0, state.surfaceWaterMass[i]! - Math.max(0.16, -state.elevation[i]! * 0.3));
     const damage = Math.min(0.012, flood * 0.0022 + state.fractureIntensity[i]! * 0.0012 + state.aerosolDensity[i]! * 0.00015);
     if (damage > 0.00001) {
-      state.vegetationMass[i] = Math.max(0, state.vegetationMass[i]! * (1 - damage));
-      state.animalMass[i] = Math.max(0, state.animalMass[i]! * (1 - damage * 0.8));
-      state.populationMass[i] = Math.max(0, state.populationMass[i]! * (1 - damage * 0.65));
+      const vegetationBefore = state.vegetationMass[i]!;
+      const animalBefore = state.animalMass[i]!;
+      const populationBefore = state.populationMass[i]!;
+      state.vegetationMass[i] = Math.max(0, vegetationBefore * (1 - damage));
+      state.animalMass[i] = Math.max(0, animalBefore * (1 - damage * 0.8));
+      state.populationMass[i] = Math.max(0, populationBefore * (1 - damage * 0.65));
+      state.environmentalResidueMass +=
+        (vegetationBefore - state.vegetationMass[i]!) +
+        (animalBefore - state.animalMass[i]!) +
+        (populationBefore - state.populationMass[i]!);
       state.infrastructureDensity[i] = Math.max(0, state.infrastructureDensity[i]! * (1 - damage * 0.35));
       markCell(state, tick, i, CAUSE.environment, 3, damage);
     }
-    state.aerosolDensity[i] *= 0.999;
+    state.aerosolDensity[i] = state.aerosolDensity[i]! * 0.999;
   }
 }

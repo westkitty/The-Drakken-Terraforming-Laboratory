@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SimulationEngine } from '../simulation/SimulationEngine';
-import { totalConvertibleMass, totalModeledWater } from '../simulation/PlanetState';
+import { totalModeledWater } from '../simulation/PlanetState';
 
 const TOLERANCE = 1e-3;
 
@@ -23,14 +23,15 @@ describe('conservation ledgers', () => {
     expect(Math.abs(ledger.pipelineError)).toBeLessThan(TOLERANCE);
   });
 
-  it('Gorevault source reduction above environmental baseline matches harvested material', () => {
-    const control = new SimulationEngine(3003);
-    const harvested = new SimulationEngine(3003);
-    harvested.deploy('gorevault', 25, 10, 20, 1);
-    control.step(80); harvested.step(80);
-    const attributableSourceReduction = totalConvertibleMass(control.state) - totalConvertibleMass(harvested.state);
-    expect(attributableSourceReduction).toBeGreaterThan(0);
-    expect(Math.abs(attributableSourceReduction - harvested.state.gorevault.totalHarvested)).toBeLessThan(0.05);
+  it('the full convertible-material budget closes through harvest and environmental residue', () => {
+    const e = new SimulationEngine(3003);
+    e.deploy('gorevault', 25, 10, 20, 1);
+    e.deploy('cloudmaw', 25, 10, 18, 0.8);
+    e.step(120);
+    const ledger = e.ledger();
+    expect(ledger.harvestedFromPlanet).toBeGreaterThan(0);
+    expect(ledger.environmentalResidueMass).toBeGreaterThan(0);
+    expect(Math.abs(ledger.systemError)).toBeLessThan(TOLERANCE);
   });
 
   it('Ringthroat only transfers mass already present in the Gorevault pipeline', () => {

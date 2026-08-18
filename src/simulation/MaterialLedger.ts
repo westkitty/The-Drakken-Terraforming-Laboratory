@@ -12,6 +12,9 @@ export interface MaterialLedgerSnapshot {
   shapedBandMaterial: number;
   pipelineAccounted: number;
   pipelineError: number;
+  environmentalResidueMass: number;
+  systemAccounted: number;
+  systemError: number;
 }
 
 export function materialLedger(state: PlanetState): MaterialLedgerSnapshot {
@@ -20,8 +23,10 @@ export function materialLedger(state: PlanetState): MaterialLedgerSnapshot {
   const gorevaultInternal = g.collectedOrganics + g.oils + g.ash + g.mineralResidue + g.organicSlurry + g.stabilizedMaterial + g.refinedFeedstock;
   const downstream = o.queuedForLift + o.risingMaterial + o.orbitalLooseMaterial + o.shapedBandMaterial;
   const pipelineAccounted = gorevaultInternal + downstream;
+  const convertibleRemaining = totalConvertibleMass(state);
+  const systemAccounted = convertibleRemaining + state.environmentalResidueMass + pipelineAccounted;
   return {
-    convertibleRemaining: totalConvertibleMass(state),
+    convertibleRemaining,
     harvestedFromPlanet: g.totalHarvested,
     gorevaultInternal,
     refinedFeedstock: g.refinedFeedstock,
@@ -30,6 +35,9 @@ export function materialLedger(state: PlanetState): MaterialLedgerSnapshot {
     orbitalLooseMaterial: o.orbitalLooseMaterial,
     shapedBandMaterial: o.shapedBandMaterial,
     pipelineAccounted,
-    pipelineError: g.totalHarvested - pipelineAccounted
+    pipelineError: g.totalHarvested - pipelineAccounted,
+    environmentalResidueMass: state.environmentalResidueMass,
+    systemAccounted,
+    systemError: state.initialConvertibleMass - systemAccounted
   };
 }

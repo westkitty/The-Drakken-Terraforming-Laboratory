@@ -94,4 +94,5 @@ export interface PlanetStateData {
   orbital: OrbitalInventory;
   totalWater: number;
   initialConvertibleMass: number;
+  environmentalResidueMass: number;
 }
