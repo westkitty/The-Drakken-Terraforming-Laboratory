@@ -1,199 +1,145 @@
 # Validation Record
 
-This file records evidence, not aspirations. Source presence is not runtime proof, and an environment failure is not converted into an application pass.
+This file records evidence, not aspirations. Source presence is not runtime proof, a static audit is not browser proof, and an environment failure is not converted into an application pass.
 
-## Required commands
+## Current verdict
 
-The intended dependency-backed validation ladder is:
+**PARTIAL.** The repository now has reproducible dependency-backed typecheck/test/build evidence, multi-seed and full-pipeline simulation proof, and clean static architecture/authorship checks. The remaining mandatory proof surface is the real browser/WebGL user journey and runtime performance/lifecycle capture.
+
+## Reproducible dependency and build proof — 2026-08-18
+
+GitHub Actions run `32210833573` validated the hardening candidate on Ubuntu 24.04 with Node `22.23.2` and npm `10.9.8` using the committed npm lockfile.
+
+- `npm ci`: **PASS** — 53 packages installed from `package-lock.json`.
+- runtime dependency gate, `npm audit --omit=dev --audit-level=high`: **PASS** — 0 runtime vulnerabilities reported.
+- full dependency audit: 1 **low** dev-only transitive `esbuild` advisory affecting a Windows development-server file-read path; 0 moderate/high/critical findings.
+- `npm run typecheck`: **PASS** with strict TypeScript plus unused-local/parameter checks.
+- `npm test`: **PASS** — 12 test files, 41 tests.
+- `npm run build`: **PASS** with Vite `7.3.5`.
+- build artifact export: **PASS**.
+
+Production build output from that run:
 
 ```text
-npm ci
-npm run typecheck
-npm test
-npm run build
-git diff --check
-git status --short
+dist/index.html                  0.64 kB | gzip 0.36 kB
+dist/assets/index-Bs8vjw42.css  8.69 kB | gzip 2.80 kB
+dist/assets/index-C54dnCox.js 599.24 kB | gzip 152.79 kB
 ```
 
-The current execution environment cannot complete the first command because the npm packages are not cached and outbound package-registry access is unavailable.
+Vite reports the single JavaScript chunk above its 500 kB advisory threshold. This is recorded as a bundle-size observation, not hidden by raising the warning limit. The renderer is part of the first usable screen, so arbitrary code splitting is not treated as a performance win without browser evidence that it improves startup.
 
-## Current evidence — 2026-08-18
+## Automated regression coverage
 
-### Repository and source
+The dependency-backed Vitest suite covers:
 
-- GitHub repository identity and write permission: **PASS** through the connected GitHub integration.
-- Branch: **PASS** — `main`.
-- Additive publication path: **PASS** — commits were created and the branch ref was advanced without force.
-- Exact local `origin`: **PASS** — `https://github.com/westkitty/The-Drakken-Terraforming-Laboratory.git`.
-- `git diff --check`: **PASS** after the final local source edits.
-
-### Authoritative simulation
-
-A dependency-free validation build compiled `src/simulation/**/*.ts` with the locally installed TypeScript 5.8.3 compiler using `strict` and `noUncheckedIndexedAccess`, then executed direct Node assertions against the emitted authoritative simulation code.
-
-Result: **PASS**.
-
-Proven behaviors:
-
-- seeded PRNG repeatability;
-- same-seed initial-state equality;
-- different-seed divergence;
-- deterministic simulation for the same ordered action schedule;
-- stable process order despite incidental process-map insertion order;
-- Fault-Tongue fracture and deterministic neighbor stress propagation in source;
+- same-seed determinism and different-seed divergence;
+- process prerequisites and stable process ordering;
 - Cloudmaw water conservation;
-- Ringthroat starvation with zero refined feedstock;
-- Gorevault source harvesting and processing inventory growth;
-- Gorevault pipeline mass conservation;
-- whole convertible-material conservation including environmental residue;
-- Ringthroat downstream material transfer without duplication;
-- exact rewind hash restoration;
-- deterministic branch common history;
-- post-fork deterministic divergence;
-- numerical A/B comparison delta.
+- Gorevault source harvesting and pipeline conservation;
+- Ringthroat starvation and no source-free orbital mass;
+- full Gorevault -> Ringthroat downstream transfer and closed-band reachability;
+- snapshot restoration, stale-snapshot invalidation, and tick-zero replay after snapshot eviction;
+- frozen branch inheritance, common-history immutability, post-fork divergence, and nested-fork behavior;
+- timeline event inheritance, rewind visibility, derived-event regeneration, and exact closed-band chronology;
+- seed `0`, keyboard grid navigation, and Ringthroat process telemetry;
+- authoritative engine-boundary normalization for invalid coordinates/radius/intensity/counts/indices;
+- fork-at-zero, future-fork clamping, unknown-toggle rejection, and same-tick deploy/toggle replay;
+- multi-seed seam/pole stress invariants.
 
-Latest measured values from the final local core smoke run:
-
-```text
-Cloudmaw water drift:            -0.000006111213679105276
-Ringthroat starved orbital mass:  0
-Gorevault harvested mass:         108.93816063337734
-Gorevault refined feedstock:      25.200000000000216
-Gorevault pipeline error:         0
-Whole-system error pre-Ringthroat:-0.000007666974852327257
-Ring/orbital material:            34.999999999999986
-Band coverage:                    0.04999999999999925
-Whole-system error post-Ringthroat:-0.000019605212855822174
-Rewind restored hash:             5bf14fdd
-Branch A hash:                    7ef40e53
-Branch B hash:                    e85fc334
-A/B crust-integrity delta:       -0.003926824543214025
-```
-
-The declared conservation tolerance is `1e-3` abstract units. All measured conservation errors are inside that tolerance.
-
-### Static safeguards
-
-Current source checks: **PASS**.
-
-- no `Math.random()` in `src/`;
-- no `fetch(`, `XMLHttpRequest`, `WebSocket`, or external HTTP runtime references in `src/`;
-- no forbidden Blood Ring descriptive terminology in application source/current docs;
-- `git diff --check` clean.
-
-### Web authorship
-
-The Web Authorship Gate scanner was run over the repository. Its only initial findings were required successor-handoff terminology inside the internal Project Bible. A scoped allowlist was applied only to `The_Drakken_Terraforming_Laboratory_Bible.md`, because that file is internal continuity infrastructure rather than user-facing application copy or production credit.
-
-Scoped result: **PASS** — no unresolved findings.
-
-### Three.js static inspection
-
-`threejs-project-engineer/scripts/inspect_threejs_project.py` result:
-
-- framework: `vanilla-threejs`;
-- renderer: `WebGLRenderer` detected;
-- React Three Fiber: absent;
-- remote runtime URLs: 0;
-- high findings: 0;
-- medium findings: 0;
-- low findings: 5.
-
-All five low findings are direct `scene.add()` calls inside `LaboratoryRenderer`, the declared single scene/view owner. That same owner implements explicit geometry/material/control/renderer disposal. They are accepted ownership signals, not evidence of scattered scene mutation.
-
-## Dependency-backed validation unavailable in this environment
-
-The repository pins exact package versions, but `package-lock.json` cannot be honestly generated here because no npm dependency cache exists and external package acquisition is blocked.
-
-A bounded offline lockfile attempt failed with:
+GitHub Actions run `32210833573` results:
 
 ```text
-ENOTCACHED: request to https://registry.npmjs.org/@types%2fthree failed because no cached response is available
+Test files: 12 passed
+Tests:      41 passed
+Vitest:     4.1.10
+Stress:     16 seeds x 120 ticks PASS
+Full path:  lawful source-matter -> closed orbital band PASS
 ```
 
-Therefore these mandatory checks remain **UNVERIFIED** in the current environment:
+## Extended direct simulation stress
 
-- full project `npm run typecheck` against the pinned Three.js/Vite/Vitest type surface;
-- the Vitest suite under the pinned dependency set;
-- production Vite build;
-- clean `npm ci` reproducibility;
-- `package-lock.json` coherence.
+A separate dependency-free 64-world stress run exercised 160 ticks per seed across representative process combinations. After hydrological storage was promoted to Float64, the same workload produced:
 
-The repository contains `.github/workflows/validate.yml` to perform install/typecheck/test/build/static checks and export `dist/` plus the lockfile when a runner executes, but no workflow result has been observable through the available GitHub integration during this session. No CI success is claimed.
+```text
+Seeds:                    64
+Ticks per seed:          160
+Worst water drift:       2.4101609596982598e-11
+Worst pipeline error:    8.881784197001252e-14
+Worst whole-system error:0.00001378257275064243
+Failures:                  0
+```
 
-## Browser/runtime validation unavailable in this environment
+The declared conservation tolerance remains `1e-3` abstract units; the implementation was made more precise rather than weakening that tolerance.
 
-Chromium is installed locally. A validation-only browser harness was prepared to exercise the real DOM and authoritative simulation while replacing the unavailable Three.js renderer dependency with a no-op renderer adapter.
+A lawful high-coverage Gorevault -> Ringthroat direct run reached closed-band state at tick `1026` with:
 
-Chromium was blocked by the organization policy **before the page loaded** for both:
+```text
+bandCoverage:   1
+continuity:     1
+bandIntegrity:  0.8207999999999178
+pipelineError:  1.3733369996771216e-10
+systemError:   -0.0000020635061446228065
+waterDrift:     1.1368683772161603e-11
+```
 
-- `http://127.0.0.1:<local-port>`;
-- `file://...`.
+## Three.js architecture and source-level performance
 
-The browser displayed: `Your organization doesn't allow you to view this site`.
+The final Three.js project-health scan reports **100 / 100**, 0 findings. This is static architecture evidence only.
 
-Accordingly:
+Verified source-level hardening includes:
 
-- browser user journeys A–G: **UNVERIFIED**;
-- actual Three.js WebGL rendering: **UNVERIFIED**;
-- renderer lifecycle/performance runtime profiling: **NOT RUN** because no runnable browser path exists.
+- one application-owned animation loop;
+- authoritative simulation remains outside Three.js;
+- device pixel ratio remains capped at 2;
+- geometry deformation/normals update only when planet state changes;
+- layer changes recolor without recomputing geometry normals;
+- selected-cell indication uses a small presentation marker rather than forcing a globe rebuild;
+- pointer-hover raycasts are coalesced into the existing frame loop;
+- A/B comparison replay remains cached by branch/tick;
+- heavy DOM panels are keyed to relevant simulation state;
+- orbital geometry rebuilds only from orbital/process state changes;
+- explicit WebGL context-loss/restoration handling is present;
+- scene resources, controls, listeners, geometry, materials, and renderer resources have cleanup paths.
 
-This is an environment proof limit, not evidence that the browser journey passes or fails.
+The runtime benchmark contract is in [`PERFORMANCE_BENCHMARK.md`](PERFORMANCE_BENCHMARK.md). No FPS, GPU-memory, thermal, or long-session runtime claim is promoted without that browser capture.
 
-## Automated Vitest coverage present in source
+## UI/UX and first-session hardening
 
-The repository test suite contains focused tests for:
+Source-level UI review produced:
 
-- planet determinism;
-- process prerequisites;
-- water and material conservation;
-- snapshot restoration;
-- branch common history and divergence;
-- stable process ordering.
+- clearer CONFIGURE / INSPECT hierarchy;
+- a short dismissible first-run guide;
+- clearer placement/inspection and branch states;
+- improved empty-state copy;
+- keyboard-operable cell traversal/activation;
+- responsive layouts for narrower widths and coarse pointers;
+- reduced-motion accommodation;
+- visible WebGL context-loss status;
+- first-inspection instructions in [`FIRST_LOOK.md`](FIRST_LOOK.md).
 
-Equivalent authoritative-simulation assertions were executed directly and passed as described above. The Vitest runner itself remains unverified until the pinned packages can be installed.
+These are implemented and source-reviewed. Their rendered quality remains subject to the real browser inspection.
 
-## Bug sweep regression evidence — 2026-08-18
+## Static hygiene
 
-A multi-pass defect sweep reproduced history-integrity failures before repair, then reran the same fixtures against the corrected implementation. Direct authoritative-simulation checks now pass for:
+The final source gate is intended to fail on:
 
-- frozen child-branch inheritance after later same-tick parent edits (`466dc81f == 466dc81f`);
-- past-edit invalidation of future snapshots (`ef331f8a == ef331f8a`);
-- tick-zero action replay after the oldest snapshot is evicted (`15bfd56c == 15bfd56c`, retained snapshots: 64);
-- repeated rewind/replay stability (`2200215f`);
-- nested-fork isolation (`48b151a3`);
-- comparison/capture restoration of the active branch, tick, world hash, and process configuration (`0a03729a`);
-- regeneration of derived timeline milestones after a past edit invalidates future derived events.
+- authoritative `Math.random()` use;
+- runtime `fetch`, `XMLHttpRequest`, `WebSocket`, or HTTP(S) references in `src/`;
+- forbidden literal ring-description terminology in source/current docs;
+- stale implementation placeholders or repair markers;
+- Git whitespace errors.
 
-Pure dependency-free UI helpers were also compiled and executed directly:
+Web Authorship Gate result after the hardening pass: **PASS**, 0 findings across the user-facing/source audit scope.
 
-- keyboard cell navigation wraps longitude and clamps latitude: **PASS**;
-- Ringthroat telemetry reports `STARVED` only when no refined feedstock or in-flight queued/rising/orbital-loose material remains: **PASS**;
-- seed `0` remains a valid deterministic seed and numeric input is normalized to the simulation's uint32 seed domain: **PASS**.
+## Browser/runtime proof still unavailable here
 
-The DOM event wiring and real Three.js rendering for those UI fixes remain **implemented-unverified** because the browser policy blocker described below still prevents the application from loading in Chromium here.
+The available local Chromium policy blocks both localhost HTTP and `file://` navigation before the application loads. Therefore the following remain **UNVERIFIED** in this execution environment:
 
-## Bug sweep third-pass evidence — 2026-08-18
+- actual Three.js WebGL rendering quality;
+- raycast/pointer interaction through the real browser;
+- complete first-look user journeys in [`FIRST_LOOK.md`](FIRST_LOOK.md);
+- responsive composition on representative real viewports/devices;
+- WebGL context-loss recovery on an actual GPU/browser path;
+- measured FPS/frame-time/memory/resource recovery and long-session stability.
 
-A third adversarial pass focused on chronology visibility and the common-history branch invariant. Direct dependency-free regression fixtures now pass for:
-
-- rewound timelines exposing no events beyond the viewed tick;
-- child branches inheriting the parent timeline through the fork boundary and retaining a frozen copy;
-- `ORBITAL BAND CLOSED` being recorded on the exact tick where closed state becomes true rather than the next 25-tick milestone interval;
-- immutable shared history before a branch fork: child edits before the child fork and parent edits before an existing child fork are rejected;
-- exact-fork-tick edits remain allowed and preserve equal world hashes before the fork;
-- the earlier history regressions remain green after the shared-history lock: frozen child inheritance, stale-snapshot invalidation, tick-zero replay after snapshot eviction, repeated rewind/replay, nested-fork isolation, comparison/capture state restoration, and derived-event replay.
-
-Post-fix static resweep:
-
-- TypeScript syntax transpile: **PASS** for 32 source files;
-- Three.js static inspection: **PASS** with 0 high / 0 medium findings and the same 5 accepted renderer-owner `scene.add()` notices;
-- Web Authorship Gate: **PASS** with only the existing scoped internal-Bible allowlist;
-- static randomness/network/Blood Ring terminology/TODO-marker checks: **PASS**;
-- `git diff --check`: **PASS**.
-
-The repair candidate was reviewed in pull request #1 and merged non-destructively into `main` as `ef9f7adf61621369b0463e53d004dc65e01a7312`. The default-branch workflow was separately updated to include `pull_request` validation. No workflow run became observable through the available GitHub integration before merge, so CI success is still not claimed.
-
-## Current validation verdict
-
-**PARTIAL.** The difficult causal simulation core is directly executed and verified. The user-facing implementation and Three.js renderer are present and statically inspected, but dependency-backed build proof, lockfile proof, and real-browser proof are unavailable in the current execution environment and must not be upgraded to PASS without new evidence.
+The next decisive validation is not more source polishing. It is to open the built application in a normal browser and run [`FIRST_LOOK.md`](FIRST_LOOK.md), followed by the bounded capture in [`PERFORMANCE_BENCHMARK.md`](PERFORMANCE_BENCHMARK.md).

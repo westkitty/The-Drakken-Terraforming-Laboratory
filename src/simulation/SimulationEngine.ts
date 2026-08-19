@@ -11,7 +11,7 @@ import { applyFaultTongue } from './processes/FaultTongueProcess';
 import { applyGorevault } from './processes/GorevaultProcess';
 import { applyRingthroat } from './processes/RingthroatProcess';
 import { buildKernel } from './processes/spatialKernel';
-import { CELL_COUNT, GRID_HEIGHT, GRID_WIDTH, SNAPSHOT_INTERVAL, type BranchRecord, type LayerId, type ProcessAction, type ProcessId, type ProcessInstance, type TimelineEvent } from './types';
+import { CELL_COUNT, SNAPSHOT_INTERVAL, type BranchRecord, type LayerId, type ProcessAction, type ProcessId, type ProcessInstance, type TimelineEvent } from './types';
 
 export interface Metrics {
   oceanCoverage: number;
@@ -45,8 +45,12 @@ export class SimulationEngine {
   }
 
   deploy(processId: ProcessId, lat: number, lon: number, radius = 18, intensity = 0.65): string {
+    const safeLat = clamp(finiteOr(lat, 0), -90, 90);
+    const safeLon = normalizeLongitude(finiteOr(lon, 0));
+    const safeRadius = clamp(finiteOr(radius, 18), 4, 40);
+    const safeIntensity = clamp(finiteOr(intensity, 0.65), 0, 1);
     const id = `${processId}-${this.state.tick}-${this.actionSequence++}`;
-    const action: ProcessAction = { kind: 'deploy', tick: this.state.tick, branchId: this.state.branchId, processId, instanceId: id, lat, lon, radius, intensity };
+    const action: ProcessAction = { kind: 'deploy', tick: this.state.tick, branchId: this.state.branchId, processId, instanceId: id, lat: safeLat, lon: safeLon, radius: safeRadius, intensity: safeIntensity };
     this.recordAction(action);
     this.applyAction(action);
     this.events.push({ tick: this.state.tick, branchId: this.state.branchId, type: 'PROCESS DEPLOYED', message: `${DRAKKEN_PROCESS_REGISTRY[processId].displayName} deployed` });
@@ -54,13 +58,15 @@ export class SimulationEngine {
   }
 
   setProcessActive(instanceId: string, active: boolean): void {
+    if (!this.processes.has(instanceId)) throw new Error(`Unknown process instance ${instanceId}`);
     const action: ProcessAction = { kind: 'toggle', tick: this.state.tick, branchId: this.state.branchId, instanceId, active };
     this.recordAction(action);
     this.applyAction(action);
   }
 
   step(count = 1): void {
-    for (let n = 0; n < count; n++) {
+    const steps = Math.max(0, Math.floor(finiteOr(count, 0)));
+    for (let n = 0; n < steps; n++) {
       this.applyProcesses('physical');
       updateEnvironment(this.state, this.state.tick);
       this.applyProcesses('gorevault');
@@ -83,6 +89,7 @@ export class SimulationEngine {
       population += this.state.populationMass[i]!;
     }
     const orbital = this.state.orbital;
+    const waterMass = totalModeledWater(this.state);
     return {
       oceanCoverage: ocean / CELL_COUNT,
       biosphereRemaining: biosphere,
@@ -91,8 +98,8 @@ export class SimulationEngine {
       refinedFeedstock: this.state.gorevault.refinedFeedstock,
       orbitalMaterial: orbital.queuedForLift + orbital.risingMaterial + orbital.orbitalLooseMaterial + orbital.shapedBandMaterial,
       bandCoverage: orbital.bandCoverage,
-      waterMass: totalModeledWater(this.state),
-      waterDrift: totalModeledWater(this.state) - this.state.initialWaterMass,
+      waterMass,
+      waterDrift: waterMass - this.state.initialWaterMass,
       convertibleRemaining: totalConvertibleMass(this.state)
     };
   }
@@ -143,7 +150,7 @@ export class SimulationEngine {
   fork(newId: string, forkTick = this.state.tick): void {
     if (this.branches.has(newId)) throw new Error(`Branch ${newId} already exists`);
     const parentId = this.state.branchId;
-    const targetTick = Math.max(0, Math.floor(forkTick));
+    const targetTick = Math.min(this.state.tick, Math.max(0, Math.floor(finiteOr(forkTick, this.state.tick))));
     this.restore(targetTick, parentId);
     const inheritedActions = this.actionsForBranch(parentId).filter(action => action.tick <= targetTick).map(action => ({ ...action }));
     const inheritedEvents = this.timelineEvents(parentId, targetTick).map(event => ({ ...event, branchId: newId }));
@@ -186,15 +193,16 @@ export class SimulationEngine {
   }
 
   selectedCell(index: number): Record<string, number | string> {
+    const safeIndex = Math.max(0, Math.min(CELL_COUNT - 1, Math.floor(finiteOr(index, 0))));
     const causeNames = ['none', 'Fault-Tongue', 'Cloudmaw', 'Gorevault', 'Ringthroat', 'environmental consequence'];
     return {
-      elevation: this.state.elevation[index]!, water: this.state.surfaceWaterMass[index]!, humidity: this.state.humidity[index]!,
-      crustIntegrity: this.state.crustIntegrity[index]!, crustStress: this.state.crustStress[index]!, fracture: this.state.fractureIntensity[index]!,
-      vegetation: this.state.vegetationMass[index]!, microbes: this.state.microbialMass[index]!, animals: this.state.animalMass[index]!, soil: this.state.organicSoilMass[index]!,
-      population: this.state.populationMass[index]!, infrastructure: this.state.infrastructureDensity[index]!, drakkenInfluence: this.state.drakkenInfluence[index]!,
-      cause: causeNames[this.state.latestCause[index]!] ?? 'unknown', causeTick: this.state.latestChangeTick[index]!,
-      changedField: provenanceFieldName(this.state.latestField[index]!), latestDelta: this.state.latestDelta[index]!,
-      materialDestination: destinationName(this.state.materialDestination[index]!)
+      elevation: this.state.elevation[safeIndex]!, water: this.state.surfaceWaterMass[safeIndex]!, humidity: this.state.humidity[safeIndex]!,
+      crustIntegrity: this.state.crustIntegrity[safeIndex]!, crustStress: this.state.crustStress[safeIndex]!, fracture: this.state.fractureIntensity[safeIndex]!,
+      vegetation: this.state.vegetationMass[safeIndex]!, microbes: this.state.microbialMass[safeIndex]!, animals: this.state.animalMass[safeIndex]!, soil: this.state.organicSoilMass[safeIndex]!,
+      population: this.state.populationMass[safeIndex]!, infrastructure: this.state.infrastructureDensity[safeIndex]!, drakkenInfluence: this.state.drakkenInfluence[safeIndex]!,
+      cause: causeNames[this.state.latestCause[safeIndex]!] ?? 'unknown', causeTick: this.state.latestChangeTick[safeIndex]!,
+      changedField: provenanceFieldName(this.state.latestField[safeIndex]!), latestDelta: this.state.latestDelta[safeIndex]!,
+      materialDestination: destinationName(this.state.materialDestination[safeIndex]!)
     };
   }
 
@@ -279,7 +287,10 @@ export class SimulationEngine {
 function actionSort(a: ProcessAction, b: ProcessAction): number {
   return a.tick - b.tick || a.instanceId.localeCompare(b.instanceId) || (a.kind === b.kind ? 0 : a.kind === 'deploy' ? -1 : 1);
 }
-function clamp01(value: number): number { return Math.max(0, Math.min(1, value)); }
+function clamp01(value: number): number { return clamp(value, 0, 1); }
+function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
+function finiteOr(value: number, fallback: number): number { return Number.isFinite(value) ? value : fallback; }
+function normalizeLongitude(value: number): number { return ((value + 180) % 360 + 360) % 360 - 180; }
 function provenanceFieldName(value: number): string { return ['none','crust','water','biosphere','material','orbit'][value] ?? 'unknown'; }
 function destinationName(value: number): string { return ['none','Gorevault processing','Ringthroat / orbital construction'][value] ?? 'unknown'; }
 function isDerivedTimelineEvent(type: string): boolean { return type.startsWith('OCEAN COVERAGE ') || type.startsWith('ORBITAL BAND '); }

@@ -16,12 +16,21 @@ export class LaboratoryRenderer {
   private readonly mesh: THREE.Mesh;
   private readonly atmosphere: THREE.Mesh;
   private readonly ringGroup = new THREE.Group();
+  private readonly selectionMarker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.022, 12, 8),
+    new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.95, depthWrite: false })
+  );
   private readonly basePositions: Float32Array;
   private layer: LayerId = 'normal';
-  private dirty = true;
+  private positionDirty = true;
+  private colorDirty = true;
+  private atmosphereDirty = true;
+  private ringDirty = true;
   private selectedIndex = -1;
   private comparisonState: PlanetState | null = null;
   private ringStateKey = '';
+  private contextLost = false;
+  private pendingHover: { clientX: number; clientY: number } | null = null;
   onCellPick?: (index: number, lat: number, lon: number) => void;
   onCellHover?: (index: number, lat: number, lon: number) => void;
 
@@ -36,35 +45,43 @@ export class LaboratoryRenderer {
     this.controls.enablePan = false; this.controls.minDistance = 1.65; this.controls.maxDistance = 5.4;
     this.controls.enableDamping = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.scene.background = new THREE.Color(0x06090d);
-    this.scene.add(new THREE.HemisphereLight(0xbddcff, 0x100d12, 1.1));
-    const key = new THREE.DirectionalLight(0xffffff, 1.9); key.position.set(3, 2, 4); this.scene.add(key);
+    this.scene.add(new THREE.HemisphereLight(0xbddcff, 0x100d12, 1.05));
+    const key = new THREE.DirectionalLight(0xffffff, 1.85); key.position.set(3, 2, 4); this.scene.add(key);
+    const rim = new THREE.DirectionalLight(0x6caed1, 0.46); rim.position.set(-3, 0.7, -2.5); this.scene.add(rim);
     this.geometry = new THREE.SphereGeometry(1, GRID_WIDTH, GRID_HEIGHT - 1);
     this.basePositions = new Float32Array(this.geometry.attributes.position!.array as Float32Array);
     const colors = new Float32Array(this.geometry.attributes.position!.count * 3); this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.03 });
     this.mesh = new THREE.Mesh(this.geometry, this.material); this.scene.add(this.mesh);
+    this.selectionMarker.visible = false; this.selectionMarker.renderOrder = 4; this.scene.add(this.selectionMarker);
     this.atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.025, 64, 32), new THREE.MeshBasicMaterial({ color: 0x74a8cc, transparent: true, opacity: 0.08, side: THREE.BackSide, depthWrite: false })); this.scene.add(this.atmosphere);
     this.scene.add(this.ringGroup);
-    this.renderer.domElement.addEventListener('click', e => this.pick(e, false));
-    this.renderer.domElement.addEventListener('pointermove', e => this.pick(e, true));
+    this.renderer.domElement.addEventListener('click', this.onCanvasClick);
+    this.renderer.domElement.addEventListener('pointermove', this.onCanvasPointerMove);
+    this.renderer.domElement.addEventListener('webglcontextlost', this.onContextLost);
+    this.renderer.domElement.addEventListener('webglcontextrestored', this.onContextRestored);
     window.addEventListener('resize', this.resize);
     this.resize();
   }
 
-  setLayer(layer: LayerId): void { if (this.layer === layer) return; this.layer = layer; this.dirty = true; }
-  markDirty(): void { this.dirty = true; }
+  setLayer(layer: LayerId): void { if (this.layer === layer) return; this.layer = layer; this.colorDirty = true; }
+  markDirty(): void { this.positionDirty = true; this.colorDirty = true; this.atmosphereDirty = true; this.ringDirty = true; }
   resetCamera(): void { this.camera.position.set(0, 0.4, 3.1); this.controls.target.set(0,0,0); this.controls.update(); }
-  setSelected(index: number): void { if (this.selectedIndex === index) return; this.selectedIndex = index; this.dirty = true; }
-  setComparisonState(state: PlanetState | null): void { if (this.comparisonState === state) return; this.comparisonState = state; this.dirty = true; }
+  setSelected(index: number): void { if (this.selectedIndex === index) return; this.selectedIndex = index; this.updateSelectionMarker(); }
+  setComparisonState(state: PlanetState | null): void { if (this.comparisonState === state) return; this.comparisonState = state; this.colorDirty = true; }
 
   render(): void {
-    if (this.dirty) { this.updatePlanet(); this.updateAtmosphere(); this.updateRing(); this.dirty = false; }
+    if (this.contextLost) return;
+    if (this.pendingHover) { const pending = this.pendingHover; this.pendingHover = null; this.pickAt(pending.clientX, pending.clientY, true); }
+    if (this.positionDirty) { this.updatePlanetGeometry(); this.positionDirty = false; }
+    if (this.colorDirty) { this.updatePlanetColors(); this.colorDirty = false; }
+    if (this.atmosphereDirty) { this.updateAtmosphere(); this.atmosphereDirty = false; }
+    if (this.ringDirty) { this.updateRing(); this.ringDirty = false; }
     this.controls.update(); this.renderer.render(this.scene, this.camera);
   }
 
-  private updatePlanet(): void {
+  private updatePlanetGeometry(): void {
     const pos = this.geometry.attributes.position as THREE.BufferAttribute;
-    const color = this.geometry.attributes.color as THREE.BufferAttribute;
     const uv = this.geometry.attributes.uv as THREE.BufferAttribute;
     for (let v = 0; v < pos.count; v++) {
       const u = uv.getX(v); const vv = uv.getY(v);
@@ -72,10 +89,31 @@ export class LaboratoryRenderer {
       const elevation = this.engine.state.elevation[i]!;
       const scale = 1 + Math.max(-0.02, Math.min(0.035, elevation * 0.025));
       pos.setXYZ(v, this.basePositions[v*3]! * scale, this.basePositions[v*3+1]! * scale, this.basePositions[v*3+2]! * scale);
-      const [r,g,b] = this.layer === 'comparison' && this.comparisonState ? comparisonColor(this.engine.state, this.comparisonState, i) : this.engine.layerValue(i, this.layer); const selected = i === this.selectedIndex ? 0.25 : 0;
-      color.setXYZ(v, Math.min(1,r+selected), Math.min(1,g+selected), Math.min(1,b+selected));
     }
-    pos.needsUpdate = true; color.needsUpdate = true; this.geometry.computeVertexNormals();
+    pos.needsUpdate = true; this.geometry.computeVertexNormals(); this.updateSelectionMarker();
+  }
+
+  private updatePlanetColors(): void {
+    const color = this.geometry.attributes.color as THREE.BufferAttribute;
+    const uv = this.geometry.attributes.uv as THREE.BufferAttribute;
+    for (let v = 0; v < color.count; v++) {
+      const u = uv.getX(v); const vv = uv.getY(v);
+      const x = Math.min(GRID_WIDTH - 1, Math.floor(u * GRID_WIDTH)); const y = Math.min(GRID_HEIGHT - 1, Math.floor(vv * GRID_HEIGHT)); const i = y * GRID_WIDTH + x;
+      const [r,g,b] = this.layer === 'comparison' && this.comparisonState ? comparisonColor(this.engine.state, this.comparisonState, i) : this.engine.layerValue(i, this.layer);
+      color.setXYZ(v, r, g, b);
+    }
+    color.needsUpdate = true;
+  }
+
+  private updateSelectionMarker(): void {
+    if (this.selectedIndex < 0) { this.selectionMarker.visible = false; return; }
+    const y = Math.floor(this.selectedIndex / GRID_WIDTH); const x = this.selectedIndex % GRID_WIDTH;
+    const lat = ((y / (GRID_HEIGHT - 1)) * 180 - 90) * Math.PI / 180;
+    const lon = ((x / GRID_WIDTH) * 360 - 180) * Math.PI / 180;
+    const elevation = this.engine.state.elevation[this.selectedIndex] ?? 0;
+    const radius = 1.035 + Math.max(-0.02, Math.min(0.035, elevation * 0.025));
+    this.selectionMarker.position.set(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)).multiplyScalar(radius);
+    this.selectionMarker.visible = true;
   }
 
   private updateAtmosphere(): void {
@@ -134,9 +172,15 @@ export class LaboratoryRenderer {
     }
   }
 
-  private pick(event: PointerEvent | MouseEvent, hover: boolean): void {
+  private readonly onCanvasClick = (event: MouseEvent): void => this.pickAt(event.clientX, event.clientY, false);
+  private readonly onCanvasPointerMove = (event: PointerEvent): void => { this.pendingHover = { clientX: event.clientX, clientY: event.clientY }; };
+  private readonly onContextLost = (event: Event): void => { event.preventDefault(); this.contextLost = true; this.container.dataset.renderState = 'lost'; };
+  private readonly onContextRestored = (): void => { this.contextLost = false; delete this.container.dataset.renderState; this.markDirty(); };
+
+  private pickAt(clientX: number, clientY: number, hover: boolean): void {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.set(((event.clientX-rect.left)/rect.width)*2-1, -((event.clientY-rect.top)/rect.height)*2+1);
+    if (rect.width <= 0 || rect.height <= 0) return;
+    this.pointer.set(((clientX-rect.left)/rect.width)*2-1, -((clientY-rect.top)/rect.height)*2+1);
     this.raycaster.setFromCamera(this.pointer,this.camera); const hit = this.raycaster.intersectObject(this.mesh)[0]; if (!hit?.uv) return;
     const x = Math.min(GRID_WIDTH-1,Math.floor(hit.uv.x*GRID_WIDTH)); const y = Math.min(GRID_HEIGHT-1,Math.floor(hit.uv.y*GRID_HEIGHT)); const i=y*GRID_WIDTH+x;
     const lat = hit.uv.y*180-90; const lon=hit.uv.x*360-180;
@@ -146,7 +190,13 @@ export class LaboratoryRenderer {
   private resize = (): void => { const w=this.container.clientWidth||640,h=this.container.clientHeight||480; this.renderer.setSize(w,h,false); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); };
 
   dispose(): void {
-    window.removeEventListener('resize', this.resize); this.controls.dispose(); this.geometry.dispose(); this.material.dispose();
+    window.removeEventListener('resize', this.resize);
+    this.renderer.domElement.removeEventListener('click', this.onCanvasClick);
+    this.renderer.domElement.removeEventListener('pointermove', this.onCanvasPointerMove);
+    this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
+    this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
+    this.controls.dispose(); this.geometry.dispose(); this.material.dispose();
+    this.selectionMarker.geometry.dispose(); (this.selectionMarker.material as THREE.Material).dispose();
     (this.atmosphere.geometry as THREE.BufferGeometry).dispose(); (this.atmosphere.material as THREE.Material).dispose();
     disposeGroup(this.ringGroup); this.ringGroup.clear();
     this.renderer.dispose(); this.renderer.domElement.remove();

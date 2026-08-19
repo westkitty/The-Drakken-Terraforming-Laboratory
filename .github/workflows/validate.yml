@@ -13,15 +13,19 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: npm
       - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install --ignore-scripts; fi
+        run: npm ci
+      - name: Capture dependency audit
+        run: npm audit --json > npm-audit.json || true
+      - name: Runtime dependency gate
+        run: npm audit --omit=dev --audit-level=high
       - name: Typecheck
         run: npm run typecheck
       - name: Test
@@ -30,15 +34,22 @@ jobs:
         run: npm run build
       - name: Static safeguards
         run: |
-          ! grep -R "Math.random()" src
-          ! grep -R -E "fetch\\(|XMLHttpRequest|WebSocket|https?://" src
-          ! grep -R -i "blood ring.*halo\|halo.*blood ring" src docs README.md 2>/dev/null
+          if grep -R "Math.random()" src; then echo "Authoritative Math.random() use found"; exit 1; fi
+          if grep -R -E "fetch\\(|XMLHttpRequest|WebSocket|https?://" src; then echo "Runtime network reference found"; exit 1; fi
+          if grep -R -i "blood ring.*halo\|halo.*blood ring" src docs README.md 2>/dev/null; then echo "Forbidden Blood Ring halo wording found"; exit 1; fi
+          if grep -R -E "(^|[^[:alnum:]_])(TODO|FIXME|HACK)([^[:alnum:]_]|$)" src docs README.md 2>/dev/null; then echo "Stale implementation marker found"; exit 1; fi
           git diff --check
+      - name: Export dependency evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: laboratory-dependency-evidence
+          path: npm-audit.json
+          if-no-files-found: error
       - name: Export build evidence
-        uses: actions/upload-artifact@v4
+        if: success()
+        uses: actions/upload-artifact@v6
         with:
           name: laboratory-build
-          path: |
-            dist/
-            package-lock.json
+          path: dist/
           if-no-files-found: error

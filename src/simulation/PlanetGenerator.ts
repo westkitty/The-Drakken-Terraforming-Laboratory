@@ -1,6 +1,6 @@
 import { PlanetState, totalConvertibleMass, totalModeledWater } from './PlanetState';
 import { hashSeed } from './SeededRandom';
-import { CELL_COUNT, GRID_HEIGHT, GRID_WIDTH } from './types';
+import { GRID_HEIGHT, GRID_WIDTH } from './types';
 
 function noise(seed: number, x: number, y: number, scale: number): number {
   const sx = Math.floor(x / scale);
@@ -57,10 +57,4 @@ export function cellToLatLon(index: number): { lat: number; lon: number } {
   const y = Math.floor(index / GRID_WIDTH);
   const x = index % GRID_WIDTH;
   return { lat: (y / (GRID_HEIGHT - 1)) * 180 - 90, lon: (x / GRID_WIDTH) * 360 - 180 };
-}
-
-export function latLonToCell(lat: number, lon: number): number {
-  const x = Math.floor((((lon + 180) % 360 + 360) % 360) / 360 * GRID_WIDTH) % GRID_WIDTH;
-  const y = Math.max(0, Math.min(GRID_HEIGHT - 1, Math.round((lat + 90) / 180 * (GRID_HEIGHT - 1))));
-  return y * GRID_WIDTH + x;
 }

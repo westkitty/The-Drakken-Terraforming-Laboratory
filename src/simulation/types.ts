@@ -73,8 +73,8 @@ export interface PlanetStateData {
   crustStress: Float32Array;
   fractureIntensity: Float32Array;
   exposedMineralMass: Float32Array;
-  surfaceWaterMass: Float32Array;
-  atmosphericWaterMass: Float32Array;
+  surfaceWaterMass: Float64Array;
+  atmosphericWaterMass: Float64Array;
   humidity: Float32Array;
   aerosolDensity: Float32Array;
   temperature: Float32Array;

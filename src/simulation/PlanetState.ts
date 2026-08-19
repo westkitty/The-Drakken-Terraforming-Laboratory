@@ -1,6 +1,7 @@
 import { CELL_COUNT, type GorevaultInventory, type OrbitalInventory, type PlanetStateData } from './types';
 
 const f32 = () => new Float32Array(CELL_COUNT);
+const f64 = () => new Float64Array(CELL_COUNT);
 
 export class PlanetState implements PlanetStateData {
   seed: number;
@@ -12,8 +13,8 @@ export class PlanetState implements PlanetStateData {
   crustStress = f32();
   fractureIntensity = f32();
   exposedMineralMass = f32();
-  surfaceWaterMass = f32();
-  atmosphericWaterMass = f32();
+  surfaceWaterMass = f64();
+  atmosphericWaterMass = f64();
   humidity = f32();
   aerosolDensity = f32();
   temperature = f32();
@@ -58,8 +59,9 @@ export class PlanetState implements PlanetStateData {
   }
 }
 
-type FloatKey = Exclude<{ [K in keyof PlanetState]: PlanetState[K] extends Float32Array ? K : never }[keyof PlanetState], undefined>;
-const FLOAT_KEYS: FloatKey[] = [
+type NumericArray = Float32Array | Float64Array;
+type ArrayKey = Exclude<{ [K in keyof PlanetState]: PlanetState[K] extends NumericArray ? K : never }[keyof PlanetState], undefined>;
+const FLOAT_KEYS: ArrayKey[] = [
   'elevation', 'crustIntegrity', 'crustStress', 'fractureIntensity', 'exposedMineralMass',
   'surfaceWaterMass', 'atmosphericWaterMass', 'humidity', 'aerosolDensity', 'temperature',
   'vegetationMass', 'microbialMass', 'animalMass', 'organicSoilMass', 'populationMass',

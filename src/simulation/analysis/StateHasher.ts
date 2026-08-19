@@ -11,7 +11,7 @@ export function hashPlanetState(state: PlanetState): string {
     state.infrastructureDensity, state.drakkenInfluence, state.latestDelta
   ];
   for (const array of arrays) {
-    const view = new Uint32Array(array.buffer, array.byteOffset, array.length);
+    const view = new Uint32Array(array.buffer, array.byteOffset, array.byteLength / Uint32Array.BYTES_PER_ELEMENT);
     for (let i = 0; i < view.length; i++) mix(view[i]!);
   }
   for (const array of [state.latestCause, state.latestField, state.materialDestination]) for (let i = 0; i < array.length; i++) mix(array[i]!);
