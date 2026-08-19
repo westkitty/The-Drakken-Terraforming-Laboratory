@@ -85,7 +85,7 @@ SUM(surfaceWaterMass + atmosphericWaterMass) before
 SUM(surfaceWaterMass + atmosphericWaterMass) after
 ```
 
-The declared automated-test tolerance is `1e-3` abstract water units, accommodating Float32 accumulation error across 8,192 cells.
+The declared automated-test tolerance is `1e-3` abstract water units. Hydrological mass fields use Float64 storage so long multi-seed runs stay comfortably inside that tolerance across 8,192 cells.
 
 Cloudmaw does not create water. `initialWaterMass` records the generated baseline; the runtime reports `WATER DRIFT = current modeled water - initialWaterMass` as a conservation diagnostic. Environmental evaporation transfers surface water into atmospheric storage; condensation performs the inverse transfer.
 
@@ -175,7 +175,7 @@ One simulation tick is one abstract laboratory time unit. The interface consumes
 The state hash is a stable non-cryptographic FNV-style integer hash over:
 
 - seed, tick, simulation time, aggregate source quantities, and environmental residue mass;
-- every element of every authoritative Float32 field;
+- every byte of every authoritative numeric typed-array field, including Float32 and Float64 hydrological storage;
 - all provenance arrays;
 - all Gorevault inventory values;
 - all orbital construction values.
