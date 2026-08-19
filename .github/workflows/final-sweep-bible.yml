@@ -1,0 +1,28 @@
+name: Final sweep Bible handoff
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  handoff:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - name: Append staged Entry 12
+        run: cat .final-sweep-bible-entry.md >> The_Drakken_Terraforming_Laboratory_Bible.md
+      - name: Self-clean and commit
+        run: |
+          rm .final-sweep-bible-entry.md .final-sweep-trigger .github/workflows/final-sweep-bible.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add The_Drakken_Terraforming_Laboratory_Bible.md .final-sweep-bible-entry.md .final-sweep-trigger .github/workflows/final-sweep-bible.yml
+          git diff --cached --check
+          git commit -m 'Append final pre-test bug-sweep project bible handoff [skip ci]'
+          git push origin HEAD:main
