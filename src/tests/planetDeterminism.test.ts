@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { planetNoise } from '../simulation/PlanetGenerator';
 import { SimulationEngine } from '../simulation/SimulationEngine';
 import { SeededRandom } from '../simulation/SeededRandom';
+import { GRID_WIDTH } from '../simulation/types';
 
 describe('seeded determinism', () => {
   it('repeats the seeded random sequence exactly', () => {
@@ -33,5 +35,13 @@ describe('seeded determinism', () => {
     a.state.gorevault.refinedFeedstock = 1;
     b.state.gorevault.refinedFeedstock = 1 + 1e-10;
     expect(a.hash()).not.toBe(b.hash());
+  });
+
+  it('keeps seeded terrain noise exactly periodic across the longitude seam', () => {
+    for (const scale of [22, 16, 12, 10, 8, 3]) {
+      for (const y of [0, 7, 31, 48, 63]) {
+        expect(planetNoise(20260819, 0, y, scale)).toBe(planetNoise(20260819, GRID_WIDTH, y, scale));
+      }
+    }
   });
 });
