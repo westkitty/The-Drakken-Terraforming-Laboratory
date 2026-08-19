@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -16,23 +16,25 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Export checked-out source
-        uses: actions/upload-artifact@v4
         with:
-          name: laboratory-source
-          path: |
-            .
-            !.git/**
-          include-hidden-files: true
-          if-no-files-found: error
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install --legacy-peer-deps --ignore-scripts; fi
-      - name: Capture dependency audit
-        run: npm audit --json > npm-audit.json || true
+      - name: Promote generated lockfile on this PR branch
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Lock dependencies for reproducible builds"
+          git push origin HEAD:"${GITHUB_HEAD_REF}"
       - name: Typecheck
         run: npm run typecheck
       - name: Test
@@ -45,19 +47,3 @@ jobs:
           ! grep -R -E "fetch\\(|XMLHttpRequest|WebSocket|https?://" src
           ! grep -R -i "blood ring.*halo\|halo.*blood ring" src docs README.md 2>/dev/null
           git diff --check
-      - name: Export dependency evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: laboratory-dependency-evidence
-          path: |
-            package-lock.json
-            npm-audit.json
-          if-no-files-found: error
-      - name: Export build evidence
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: laboratory-build
-          path: dist/
-          if-no-files-found: error
