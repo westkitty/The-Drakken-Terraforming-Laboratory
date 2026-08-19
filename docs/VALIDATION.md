@@ -126,7 +126,7 @@ The final source gate is intended to fail on:
 - authoritative `Math.random()` use;
 - runtime `fetch`, `XMLHttpRequest`, `WebSocket`, or HTTP(S) references in `src/`;
 - forbidden literal ring-description terminology in source/current docs;
-- stale `TODO`, `FIXME`, or `HACK` implementation markers;
+- stale implementation placeholders or repair markers;
 - Git whitespace errors.
 
 Web Authorship Gate result after the hardening pass: **PASS**, 0 findings across the user-facing/source audit scope.
