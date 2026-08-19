@@ -1,145 +1,124 @@
 # Validation Record
 
-This file records evidence, not aspirations. Source presence is not runtime proof, a static audit is not browser proof, and an environment failure is not converted into an application pass.
+This file records evidence, not aspirations. Source presence is not runtime proof, a static audit is not browser proof, and a CI software renderer is not target-hardware performance proof.
 
 ## Current verdict
 
-**PARTIAL.** The repository now has reproducible dependency-backed typecheck/test/build evidence, multi-seed and full-pipeline simulation proof, and clean static architecture/authorship checks. The remaining mandatory proof surface is the real browser/WebGL user journey and runtime performance/lifecycle capture.
+**PARTIALLY VERIFIED, WITH THE PRIMARY CHROME USER JOURNEY VERIFIED.** The repository has reproducible dependency-backed typecheck/test/build evidence, simulation stress and full-pipeline proof, clean static architecture checks, and a real Chrome/Playwright browser-validation lane. The remaining proof surfaces are subjective human first-look judgment, representative physical-device/coarse-pointer feel, and target-hardware sustained performance/thermal behavior.
 
-## Reproducible dependency and build proof — 2026-08-18
+## Reproducible dependency and build proof
 
-GitHub Actions run `32210833573` validated the hardening candidate on Ubuntu 24.04 with Node `22.23.2` and npm `10.9.8` using the committed npm lockfile.
+GitHub Actions run `32256868714` validated PR #3 on Ubuntu 24.04 with Node `22.23.2` and npm `10.9.8` from the committed lockfile.
 
-- `npm ci`: **PASS** — 53 packages installed from `package-lock.json`.
-- runtime dependency gate, `npm audit --omit=dev --audit-level=high`: **PASS** — 0 runtime vulnerabilities reported.
-- full dependency audit: 1 **low** dev-only transitive `esbuild` advisory affecting a Windows development-server file-read path; 0 moderate/high/critical findings.
-- `npm run typecheck`: **PASS** with strict TypeScript plus unused-local/parameter checks.
-- `npm test`: **PASS** — 12 test files, 41 tests.
+- `npm ci`: **PASS** — 56 packages installed.
+- runtime dependency gate, `npm audit --omit=dev --audit-level=high`: **PASS** — 0 runtime vulnerabilities.
+- full dependency audit: 1 low dev-only transitive issue; 0 moderate/high/critical findings.
+- `npm run typecheck`: **PASS**.
+- `npm test`: **PASS** — 13 Vitest files / 43 tests.
 - `npm run build`: **PASS** with Vite `7.3.5`.
-- build artifact export: **PASS**.
+- static safeguards: **PASS**.
+- dependency and production-build artifacts: **PASS**.
 
 Production build output from that run:
 
 ```text
-dist/index.html                  0.64 kB | gzip 0.36 kB
+dist/index.html                  0.51 kB | gzip 0.32 kB
 dist/assets/index-Bs8vjw42.css  8.69 kB | gzip 2.80 kB
-dist/assets/index-C54dnCox.js 599.24 kB | gzip 152.79 kB
+dist/assets/index-LRUEqIqB.js 600.86 kB | gzip 153.45 kB
 ```
 
-Vite reports the single JavaScript chunk above its 500 kB advisory threshold. This is recorded as a bundle-size observation, not hidden by raising the warning limit. The renderer is part of the first usable screen, so arbitrary code splitting is not treated as a performance win without browser evidence that it improves startup.
+The single JavaScript chunk remains above Vite's 500 kB advisory threshold. This remains an observation, not an automatic code-splitting defect.
 
-## Automated regression coverage
+## Automated simulation and renderer regressions
 
-The dependency-backed Vitest suite covers:
+The dependency-backed Vitest suite covers deterministic world generation, process prerequisites and ordering, water/material conservation, Ringthroat starvation, full Gorevault-to-Ringthroat closure, history/snapshot restoration, branch isolation/common-history rules, timeline chronology, engine input boundaries, keyboard grid navigation, seed handling, process telemetry, multi-seed stress, and renderer UV seam/pole clamping.
 
-- same-seed determinism and different-seed divergence;
-- process prerequisites and stable process ordering;
-- Cloudmaw water conservation;
-- Gorevault source harvesting and pipeline conservation;
-- Ringthroat starvation and no source-free orbital mass;
-- full Gorevault -> Ringthroat downstream transfer and closed-band reachability;
-- snapshot restoration, stale-snapshot invalidation, and tick-zero replay after snapshot eviction;
-- frozen branch inheritance, common-history immutability, post-fork divergence, and nested-fork behavior;
-- timeline event inheritance, rewind visibility, derived-event regeneration, and exact closed-band chronology;
-- seed `0`, keyboard grid navigation, and Ringthroat process telemetry;
-- authoritative engine-boundary normalization for invalid coordinates/radius/intensity/counts/indices;
-- fork-at-zero, future-fork clamping, unknown-toggle rejection, and same-tick deploy/toggle replay;
-- multi-seed seam/pole stress invariants.
-
-GitHub Actions run `32210833573` results:
+Run `32256868714` results:
 
 ```text
-Test files: 12 passed
-Tests:      41 passed
+Test files: 13 passed
+Tests:      43 passed
 Vitest:     4.1.10
-Stress:     16 seeds x 120 ticks PASS
-Full path:  lawful source-matter -> closed orbital band PASS
 ```
 
-## Extended direct simulation stress
-
-A separate dependency-free 64-world stress run exercised 160 ticks per seed across representative process combinations. After hydrological storage was promoted to Float64, the same workload produced:
+The earlier direct 64-seed x 160-tick stress result remains valid for unchanged authoritative numerical state:
 
 ```text
-Seeds:                    64
-Ticks per seed:          160
-Worst water drift:       2.4101609596982598e-11
-Worst pipeline error:    8.881784197001252e-14
-Worst whole-system error:0.00001378257275064243
-Failures:                  0
+Worst water drift:        2.4101609596982598e-11
+Worst pipeline error:     8.881784197001252e-14
+Worst whole-system error: 0.00001378257275064243
+Failures:                 0
 ```
 
-The declared conservation tolerance remains `1e-3` abstract units; the implementation was made more precise rather than weakening that tolerance.
+A lawful high-coverage Gorevault -> Ringthroat direct run reached closed-band state at tick `1026` with conservation errors inside the declared `1e-3` tolerance.
 
-A lawful high-coverage Gorevault -> Ringthroat direct run reached closed-band state at tick `1026` with:
+## Real Chrome browser proof — 2026-08-19
+
+PR #3 browser-validation run `32256868714` used the GitHub-hosted Ubuntu runner's installed Google Chrome `151.0.7922.108`. Playwright ran the production Vite build with one worker and reported:
 
 ```text
-bandCoverage:   1
-continuity:     1
-bandIntegrity:  0.8207999999999178
-pipelineError:  1.3733369996771216e-10
-systemError:   -0.0000020635061446228065
-waterDrift:     1.1368683772161603e-11
+Browser tests: 10 passed / 10
+Duration:      about 2 minutes
+Evidence:      laboratory-browser-evidence artifact 9366713842
 ```
 
-## Three.js architecture and source-level performance
+The browser suite directly verifies:
 
-The final Three.js project-health scan reports **100 / 100**, 0 findings. This is static architecture evidence only.
+- application startup with a real WebGL canvas and no unexpected console/page errors;
+- Fault-Tongue authoritative change followed by crust-layer inspection;
+- Cloudmaw water redistribution with total modeled water conserved;
+- Ringthroat starvation before feedstock and orbital growth only after the Gorevault material chain exists;
+- rewind to an earlier authoritative state, future-event filtering, forked common history, post-fork divergence, and comparison rendering;
+- provenance inspection of transformed cells;
+- semantic regions/buttons, accessible naming, keyboard cell traversal and activation;
+- narrow `390 x 844` viewport composition without global horizontal overflow;
+- reduced-motion preference disabling OrbitControls damping;
+- rapid play/pause, layer switching, branch switching, timeline scrubbing, resize storms, camera input, repeated reset, and WebGL context loss/restoration.
 
-Verified source-level hardening includes:
+The browser evidence contains eight full-page state screenshots covering initial state, Fault-Tongue crust, Cloudmaw hydrology, Ringthroat starvation, Gorevault-to-Ringthroat material flow, branch comparison, provenance, and the `390 x 844` narrow viewport. Objective review found no blank canvas, primary-region overlap, global narrow-viewport overflow, or state/layer mismatch in those captures.
 
-- one application-owned animation loop;
-- authoritative simulation remains outside Three.js;
-- device pixel ratio remains capped at 2;
-- geometry deformation/normals update only when planet state changes;
-- layer changes recolor without recomputing geometry normals;
-- selected-cell indication uses a small presentation marker rather than forcing a globe rebuild;
-- pointer-hover raycasts are coalesced into the existing frame loop;
-- A/B comparison replay remains cached by branch/tick;
-- heavy DOM panels are keyed to relevant simulation state;
-- orbital geometry rebuilds only from orbital/process state changes;
-- explicit WebGL context-loss/restoration handling is present;
-- scene resources, controls, listeners, geometry, materials, and renderer resources have cleanup paths.
+Browser testing also exposed a renderer UV boundary issue at SphereGeometry seam/pole offsets. `uvToGridCell()` now clamps those offsets into the 128 x 64 authoritative lattice, with dedicated regression coverage. The final Chrome run includes that repair.
 
-The runtime benchmark contract is in [`PERFORMANCE_BENCHMARK.md`](PERFORMANCE_BENCHMARK.md). No FPS, GPU-memory, thermal, or long-session runtime claim is promoted without that browser capture.
+## CI performance and lifecycle evidence
 
-## UI/UX and first-session hardening
+The Chrome suite records a bounded smoke scenario named `CI-PRELOOK-SMOKE-01`. The final run used ANGLE with SwiftShader, so frame-time results are deliberately classified **NOT COMPARABLE TO TARGET HARDWARE**.
 
-Source-level UI review produced:
+Final run `32256868714` evidence:
 
-- clearer CONFIGURE / INSPECT hierarchy;
-- a short dismissible first-run guide;
-- clearer placement/inspection and branch states;
-- improved empty-state copy;
-- keyboard-operable cell traversal/activation;
-- responsive layouts for narrower widths and coarse pointers;
-- reduced-motion accommodation;
-- visible WebGL context-loss status;
-- first-inspection instructions in [`FIRST_LOOK.md`](FIRST_LOOK.md).
+```text
+Navigation DOMContentLoaded: 167.8 ms
+Navigation load:             180.1 ms
+Frame samples:               529
+Frame p50:                   33.3 ms
+Frame p95:                   50.0 ms
+Frame p99:                   66.6 ms
+Frames > 50 ms:              2.46%
+Latest simulation step:      0.465 ms
+Long tasks:                  9, max 165 ms
+Heap delta after 3 resets:   +412,796 bytes
+Renderer geometries:         3 baseline / 3 settled
+Renderer textures:           1 baseline / 1 settled
+Scene unique geometries:     3 baseline / 3 settled
+Scene unique materials:      3 baseline / 3 settled
+```
 
-These are implemented and source-reviewed. Their rendered quality remains subject to the real browser inspection.
+The evidence verifies bounded CI lifecycle behavior: three reset cycles return renderer resource counts to baseline, heap growth remains inside the test bound, simulation-step timing remains inside the provisional 8 ms check, and the WebGL loss/restoration path returns to rendering. It does **not** prove target-device FPS, GPU cost, thermals, or long-session stability because SwiftShader is a virtual software renderer.
 
-## Static hygiene
+The target-hardware benchmark contract remains [`PERFORMANCE_BENCHMARK.md`](PERFORMANCE_BENCHMARK.md).
 
-The final source gate is intended to fail on:
+## Three.js architecture and static hygiene
 
-- authoritative `Math.random()` use;
-- runtime `fetch`, `XMLHttpRequest`, `WebSocket`, or HTTP(S) references in `src/`;
-- forbidden literal ring-description terminology in source/current docs;
-- stale implementation placeholders or repair markers;
-- Git whitespace errors.
+The Three.js project-health scan remains **100 / 100 with 0 findings** after the browser-validation instrumentation. The application retains one frame-loop owner, fixed-step authoritative simulation, capped device pixel ratio, explicit resource cleanup, state-derived rendering, no runtime hotlinks/network calls, and an opt-in read-only diagnostics surface enabled only by `?diagnostics=1`.
 
-Web Authorship Gate result after the hardening pass: **PASS**, 0 findings across the user-facing/source audit scope.
+Browser diagnostics do not create another render loop and do not own or mutate authoritative simulation state.
 
-## Browser/runtime proof still unavailable here
+## Remaining human/device validation
 
-The available local Chromium policy blocks both localhost HTTP and `file://` navigation before the application loads. Therefore the following remain **UNVERIFIED** in this execution environment:
+The automated first-look path is now verified in Chrome. These items remain outside the evidence gathered here:
 
-- actual Three.js WebGL rendering quality;
-- raycast/pointer interaction through the real browser;
-- complete first-look user journeys in [`FIRST_LOOK.md`](FIRST_LOOK.md);
-- responsive composition on representative real viewports/devices;
-- WebGL context-loss recovery on an actual GPU/browser path;
-- measured FPS/frame-time/memory/resource recovery and long-session stability.
+- subjective visual taste, clarity, and whether the laboratory feels compelling to the user;
+- physical touch/coarse-pointer feel on representative hardware rather than viewport emulation alone;
+- target-GPU frame-time distributions and GPU-specific rendering cost;
+- sustained thermals and long-session behavior on representative physical devices.
 
-The next decisive validation is not more source polishing. It is to open the built application in a normal browser and run [`FIRST_LOOK.md`](FIRST_LOOK.md), followed by the bounded capture in [`PERFORMANCE_BENCHMARK.md`](PERFORMANCE_BENCHMARK.md).
+The next useful action is the user's own first look using [`FIRST_LOOK.md`](FIRST_LOOK.md). Target-hardware performance work should follow only if that inspection warrants it.
