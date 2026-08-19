@@ -11,11 +11,17 @@ test('rapid controls, resize storms, branch switching, scrubbing, camera input, 
 
   await selectProcess(page, 'fault-tongue');
   await clickGlobe(page, 0.5, 0.5);
+  await expect(page.locator('#targeting')).toContainText('DEPLOYED');
+  await expect(page.locator('#targeting')).toContainText('PRESS PLAY');
   await page.locator('#speed').selectOption('4');
   await runUntilTick(page, 40);
+  await expect(page.locator('#targeting')).not.toContainText('PRESS PLAY');
+  await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');
   await setTimelineTick(page, 20);
+  await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');
   await page.locator('#fork').click();
   for (let i = 0; i < 8; i++) await page.locator(i % 2 === 0 ? '#switchB' : '#switchA').click();
+  await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');
 
   for (const layer of ['crust', 'hydrology', 'atmosphere', 'biosphere', 'feedstock', 'drakken', 'provenance', 'normal']) await page.locator(`[data-layer="${layer}"]`).click();
 
@@ -41,6 +47,9 @@ test('rapid controls, resize storms, branch switching, scrubbing, camera input, 
     await page.locator('#regenerate').click();
     await expect(page.locator('#viewport canvas')).toHaveCount(1);
     expect((await diagnostics(page)).tick).toBe(0);
+    await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');
+    await expect(page.locator('#targeting')).not.toContainText('HISTORY LOCKED');
+    await expect(page.locator('#targeting')).toContainText(/PLACEMENT|INSPECT/);
   }
 
   const contextResult = await page.locator('#viewport canvas').evaluate(async canvasNode => {
