@@ -45,12 +45,13 @@ export class LaboratoryApp {
           <button id="placement" class="active" aria-pressed="true">PLACEMENT ARMED</button>
           <div><h3>DEPLOYED INSTANCES</h3><div id="instances" class="dense-list"></div></div>
         </aside>
-        <section class="viewport-wrap"><div id="viewport" class="viewport" aria-label="Interactive planetary viewport"></div><div id="targeting" class="targeting">TARGETING READY</div><div class="layerbar" id="layerbar"></div></section>
+        <section class="viewport-wrap"><div id="viewport" class="viewport" aria-label="Interactive planetary viewport"></div><div id="targeting" class="targeting">TARGETING READY</div><div class="layerlegend" id="layerlegend" aria-live="polite"></div><div class="layerbar" id="layerbar"></div></section>
         <aside class="panel inspector" aria-label="Planetary autopsy inspector"><h2>PLANETARY AUTOPSY</h2><div id="inspector"></div><h3>MATERIAL LEDGER</h3><div id="ledger" class="metric-grid"></div><h3>COMPARE A / B</h3><div id="compare"></div></aside>
         <footer class="timeline"><div class="timeline-controls"><button id="play">PLAY</button><label>SPEED <select id="speed"><option>.25</option><option selected>1</option><option>4</option><option>16</option><option>64</option></select></label><button id="fork">FORK B</button><button id="switchA">BRANCH A</button><button id="switchB">BRANCH B</button><button id="camera">RESET VIEW</button></div><label class="scrub">EXPERIMENT TIMELINE <input id="timeline" type="range" min="0" max="0" value="0"><output id="tickout">TICK 0</output></label><div id="events" class="events"></div></footer>
       </main>`;
     const layers: LayerId[]=['normal','crust','hydrology','atmosphere','biosphere','feedstock','drakken','provenance','comparison'];
     this.must('layerbar').innerHTML = layers.map((l,i)=>`<button data-layer="${l}" class="${i===0?'active':''}" aria-pressed="${i===0}">${l.toUpperCase()}</button>`).join('');
+    this.must('layerlegend').textContent = LAYER_LEGENDS.normal;
   }
 
   private bind(): void {
@@ -65,7 +66,7 @@ export class LaboratoryApp {
     this.must('switchA').addEventListener('click',()=>this.switchBranch('A'));
     this.must('switchB').addEventListener('click',()=>{if(this.engine.branches.has('B'))this.switchBranch('B');});
     this.must('camera').addEventListener('click',()=>this.renderer.resetCamera());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach(b=>b.addEventListener('click',()=>{this.root.querySelectorAll('[data-layer]').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false');});b.classList.add('active');b.setAttribute('aria-pressed','true');this.currentLayer=b.dataset.layer as LayerId;this.renderer.setLayer(this.currentLayer);}));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach(b=>b.addEventListener('click',()=>{this.root.querySelectorAll('[data-layer]').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false');});b.classList.add('active');b.setAttribute('aria-pressed','true');this.currentLayer=b.dataset.layer as LayerId;this.renderer.setLayer(this.currentLayer);this.must('layerlegend').textContent=LAYER_LEGENDS[this.currentLayer];}));
   }
 
   private loop = (now:number): void => {
@@ -97,6 +98,7 @@ export class LaboratoryApp {
   private must<T extends HTMLElement=HTMLElement>(id:string):T{const el=this.root.querySelector<T>(`#${id}`);if(!el)throw new Error(`Missing #${id}`);return el;}
   dispose():void{cancelAnimationFrame(this.frameId);this.renderer.dispose();}
 }
+const LAYER_LEGENDS: Record<LayerId,string> = {normal:'NORMAL · terrain / water / vegetation / transformation',crust:'CRUST · integrity / stress / fracture',hydrology:'HYDROLOGY · surface water mass',atmosphere:'ATMOSPHERE · humidity / aerosols',biosphere:'BIOSPHERE · vegetation / microbes / animals',feedstock:'FEEDSTOCK · harvestable matter / processing state',drakken:'DRAKKEN · active process influence',provenance:'PROVENANCE · latest major causal source',comparison:'COMPARISON · crimson active-branch transformation / azure comparison-branch transformation'};
 function display(id:ProcessId):string{return DRAKKEN_PROCESS_REGISTRY[id].displayName;}
 function processStatus(id:ProcessId,active:boolean,feedstock:number,orbital:number):string{if(!active)return'INACTIVE';if(id==='ringthroat'&&feedstock<=1e-5&&orbital<=1e-5)return'STARVED';return'ACTIVE';}
 function fmt(v:number):string{return Math.abs(v)>=100?v.toFixed(1):v.toFixed(4);}

@@ -68,6 +68,7 @@ For each cached influenced cell, process weight is the deployment intensity mult
 - fracture reduces crust integrity;
 - a seeded cell/tick orientation term causes deterministic local uplift/subsidence;
 - fracture exposes mineral mass and adds aerosols;
+- a bounded fraction of fracture stress propagates to orthogonal neighboring cells, with longitude wrap and pole clamping;
 - provenance identifies crust as the directly affected field.
 
 The seeded orientation is derived from integer hashing. No per-frame random vertex perturbation exists.
@@ -86,7 +87,7 @@ SUM(surfaceWaterMass + atmosphericWaterMass) after
 
 The declared automated-test tolerance is `1e-3` abstract water units, accommodating Float32 accumulation error across 8,192 cells.
 
-Cloudmaw does not create water. Environmental evaporation transfers surface water into atmospheric storage; condensation performs the inverse transfer.
+Cloudmaw does not create water. `initialWaterMass` records the generated baseline; the runtime reports `WATER DRIFT = current modeled water - initialWaterMass` as a conservation diagnostic. Environmental evaporation transfers surface water into atmospheric storage; condensation performs the inverse transfer.
 
 ## Environmental response — LAB MODEL
 
