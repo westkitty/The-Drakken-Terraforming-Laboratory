@@ -11,7 +11,7 @@ import { applyFaultTongue } from './processes/FaultTongueProcess';
 import { applyGorevault } from './processes/GorevaultProcess';
 import { applyRingthroat } from './processes/RingthroatProcess';
 import { buildKernel } from './processes/spatialKernel';
-import { CELL_COUNT, SNAPSHOT_INTERVAL, type BranchRecord, type LayerId, type ProcessAction, type ProcessId, type ProcessInstance, type TimelineEvent } from './types';
+import { CELL_COUNT, GRID_HEIGHT, GRID_WIDTH, SNAPSHOT_INTERVAL, type BranchRecord, type LayerId, type ProcessAction, type ProcessId, type ProcessInstance, type TimelineEvent } from './types';
 
 export interface Metrics {
   oceanCoverage: number;
@@ -35,11 +35,12 @@ export class SimulationEngine {
   private readonly snapshots = new SnapshotStore();
   private actionSequence = 0;
   private replaying = false;
+  private recordReplayEvents = false;
 
   constructor(seed = 19870615) {
     this.seed = seed >>> 0;
     this.state = generatePlanet(this.seed);
-    this.branches.set('A', { id: 'A', parentId: null, forkTick: 0, actions: [] });
+    this.branches.set('A', { id: 'A', parentId: null, forkTick: 0, inheritedActions: [], actions: [] });
     this.snapshot();
   }
 
@@ -68,7 +69,7 @@ export class SimulationEngine {
       this.state.tick++;
       this.state.simulationTime += 1;
       this.state.totalWater = totalModeledWater(this.state);
-      if (!this.replaying) this.generateThresholdEvents();
+      if (!this.replaying || this.recordReplayEvents) this.generateThresholdEvents();
       if (!this.replaying && this.state.tick % SNAPSHOT_INTERVAL === 0) this.snapshot();
     }
   }
@@ -82,7 +83,6 @@ export class SimulationEngine {
       population += this.state.populationMass[i]!;
     }
     const orbital = this.state.orbital;
-    const waterMass = totalModeledWater(this.state);
     return {
       oceanCoverage: ocean / CELL_COUNT,
       biosphereRemaining: biosphere,
@@ -91,8 +91,8 @@ export class SimulationEngine {
       refinedFeedstock: this.state.gorevault.refinedFeedstock,
       orbitalMaterial: orbital.queuedForLift + orbital.risingMaterial + orbital.orbitalLooseMaterial + orbital.shapedBandMaterial,
       bandCoverage: orbital.bandCoverage,
-      waterMass,
-      waterDrift: waterMass - this.state.initialWaterMass,
+      waterMass: totalModeledWater(this.state),
+      waterDrift: totalModeledWater(this.state) - this.state.initialWaterMass,
       convertibleRemaining: totalConvertibleMass(this.state)
     };
   }
@@ -102,25 +102,24 @@ export class SimulationEngine {
   snapshotCount(branchId = this.state.branchId): number { return this.snapshots.count(branchId); }
   layerValue(index: number, layer: LayerId): [number, number, number] { return readLayerValue(this.state, index, layer); }
 
-  restore(targetTick: number, branchId = this.state.branchId): void {
+  restore(targetTick: number, branchId = this.state.branchId, recordDerivedEvents = true): void {
     if (!this.branches.has(branchId)) throw new Error(`Unknown branch ${branchId}`);
     const target = Math.max(0, Math.floor(targetTick));
     const actions = this.actionsForBranch(branchId);
     const nearest = this.snapshots.nearest(branchId, target);
     this.processes.clear();
     this.replaying = true;
+    this.recordReplayEvents = recordDerivedEvents;
     try {
+      let cursor = 0;
       if (nearest) {
-        for (const action of actions) if (action.tick <= nearest.tick) this.applyAction(action);
+        while (cursor < actions.length && actions[cursor]!.tick <= nearest.tick) this.applyAction(actions[cursor++]!);
         this.state = nearest.state.clone();
         this.state.branchId = branchId;
       } else {
         this.state = generatePlanet(this.seed);
         this.state.branchId = branchId;
       }
-      const startTick = this.state.tick;
-      let cursor = 0;
-      while (cursor < actions.length && actions[cursor]!.tick <= startTick) cursor++;
       while (this.state.tick < target) {
         while (cursor < actions.length && actions[cursor]!.tick === this.state.tick) this.applyAction(actions[cursor++]!);
         this.step(1);
@@ -128,25 +127,28 @@ export class SimulationEngine {
       while (cursor < actions.length && actions[cursor]!.tick === this.state.tick) this.applyAction(actions[cursor++]!);
     } finally {
       this.replaying = false;
+      this.recordReplayEvents = false;
     }
   }
 
   captureState(branchId: string, tick: number): PlanetState {
     const originalBranch = this.state.branchId;
     const originalTick = this.state.tick;
-    this.restore(tick, branchId);
+    this.restore(tick, branchId, false);
     const captured = this.state.clone();
-    this.restore(originalTick, originalBranch);
+    this.restore(originalTick, originalBranch, false);
     return captured;
   }
 
   fork(newId: string, forkTick = this.state.tick): void {
     if (this.branches.has(newId)) throw new Error(`Branch ${newId} already exists`);
     const parentId = this.state.branchId;
-    this.restore(forkTick, parentId);
-    this.branches.set(newId, { id: newId, parentId, forkTick, actions: [] });
+    const targetTick = Math.max(0, Math.floor(forkTick));
+    this.restore(targetTick, parentId);
+    const inheritedActions = this.actionsForBranch(parentId).filter(action => action.tick <= targetTick).map(action => ({ ...action }));
+    this.branches.set(newId, { id: newId, parentId, forkTick: targetTick, inheritedActions, actions: [] });
     this.state.branchId = newId;
-    this.events.push({ tick: forkTick, branchId: newId, type: 'BRANCH CREATED', message: `Branch ${newId} forked from ${parentId}` });
+    this.events.push({ tick: targetTick, branchId: newId, type: 'BRANCH CREATED', message: `Branch ${newId} forked from ${parentId}` });
     this.snapshot();
   }
 
@@ -158,10 +160,10 @@ export class SimulationEngine {
   compare(branchA: string, branchB: string, tick: number): { a: Metrics; b: Metrics; delta: Metrics } {
     const originalBranch = this.state.branchId;
     const originalTick = this.state.tick;
-    this.restore(tick, branchA); const a = this.metrics();
-    this.restore(tick, branchB); const b = this.metrics();
+    this.restore(tick, branchA, false); const a = this.metrics();
+    this.restore(tick, branchB, false); const b = this.metrics();
     const delta = Object.fromEntries(Object.keys(a).map(key => [key, b[key as keyof Metrics] - a[key as keyof Metrics]])) as unknown as Metrics;
-    this.restore(originalTick, originalBranch);
+    this.restore(originalTick, originalBranch, false);
     return { a, b, delta };
   }
 
@@ -182,6 +184,11 @@ export class SimulationEngine {
     const branch = this.branches.get(this.state.branchId);
     if (!branch) throw new Error(`Unknown branch ${this.state.branchId}`);
     branch.actions.push({ ...action });
+    this.snapshots.truncateAfter(branch.id, action.tick);
+    for (let i = this.events.length - 1; i >= 0; i--) {
+      const event = this.events[i]!;
+      if (event.branchId === branch.id && event.tick > action.tick && isDerivedTimelineEvent(event.type)) this.events.splice(i, 1);
+    }
   }
 
   private applyAction(action: ProcessAction): void {
@@ -228,10 +235,7 @@ export class SimulationEngine {
   private actionsForBranch(branchId: string): ProcessAction[] {
     const branch = this.branches.get(branchId);
     if (!branch) return [];
-    const own = branch.actions.map(action => ({ ...action }));
-    if (!branch.parentId) return own.sort(actionSort);
-    const inherited = this.actionsForBranch(branch.parentId).filter(action => action.tick <= branch.forkTick);
-    return [...inherited, ...own].sort(actionSort);
+    return [...branch.inheritedActions, ...branch.actions].map(action => ({ ...action })).sort(actionSort);
   }
 
   private generateThresholdEvents(): void {
@@ -258,4 +262,5 @@ function actionSort(a: ProcessAction, b: ProcessAction): number {
 function clamp01(value: number): number { return Math.max(0, Math.min(1, value)); }
 function provenanceFieldName(value: number): string { return ['none','crust','water','biosphere','material','orbit'][value] ?? 'unknown'; }
 function destinationName(value: number): string { return ['none','Gorevault processing','Ringthroat / orbital construction'][value] ?? 'unknown'; }
+function isDerivedTimelineEvent(type: string): boolean { return type.startsWith('OCEAN COVERAGE ') || type.startsWith('ORBITAL BAND '); }
 export { hashPlanetState } from './analysis/StateHasher';

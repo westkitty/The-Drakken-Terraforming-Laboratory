@@ -46,7 +46,7 @@ Deployment order does not decide process phase. Instances inside a process phase
 
 ### DOM UI
 
-Ordinary controls, telemetry, process cards, inspector values, timeline, branch controls, comparison numbers, and legends are semantic DOM surfaces. The canvas is reserved for planetary visualization and raycast picking.
+Ordinary controls, telemetry, process cards, inspector values, timeline, branch controls, comparison numbers, and legends are semantic DOM surfaces. The canvas is reserved for planetary visualization and raycast picking. The viewport wrapper is keyboard-focusable: arrow keys traverse authoritative cells and Enter/Space activates the selected cell, providing a DOM-owned alternative to pointer-only planet picking.
 
 ## Determinism
 
@@ -54,9 +54,9 @@ Authoritative procedural variation comes from integer seed hashing and `SeededRa
 
 ## History model
 
-The engine stores bounded periodic snapshots and branch action logs. Restore finds the nearest retained snapshot at or before the target tick when one exists, reconstructs process-instance state at that boundary, restores the planetary snapshot, and deterministically replays only the remainder. Replay suppresses snapshot/event generation so inspection does not mutate history storage.
+The engine stores bounded periodic snapshots and branch action logs. Restore finds the nearest retained snapshot at or before the target tick when one exists, reconstructs process-instance state at that boundary, restores the planetary snapshot, and deterministically replays only the remainder. Replay always suppresses snapshot generation. User-facing restore may regenerate invalidated derived milestone events, while comparison/capture replay suppresses event mutation so inspection does not alter history storage.
 
-Each branch records parent ID, fork tick, and branch-local actions. A child inherits parent actions only through the fork tick.
+Each branch records parent ID, fork tick, a frozen copy of inherited actions through the fork boundary, and branch-local actions. Once a child is created, later edits to the parent cannot leak into the child's past. Inserting an action into an earlier tick truncates future snapshots for that branch so restore cannot select stale state. Derived milestone events invalidated by the edit are regenerated during user-facing deterministic replay; comparison/capture replays remain side-effect free.
 
 ## A/B comparison
 
@@ -70,7 +70,7 @@ Comparison has two forms:
 - device pixel ratio is capped at 2;
 - the scene graph is persistent rather than rebuilt every tick;
 - planet geometry is deformed from retained base positions, preventing cumulative drift;
-- orbital geometry is rebuilt only on dirty state and previous resources are explicitly disposed;
+- orbital geometry is rebuilt only when its orbital-material/process state key changes, not for unrelated layer/selection dirtiness, and previous resources are explicitly disposed;
 - resize listeners, controls, geometries, materials, and renderer are disposed on teardown;
 - process spatial kernels are cached on each deployment instance;
 - snapshot count is bounded.

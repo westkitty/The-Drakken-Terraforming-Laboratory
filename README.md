@@ -27,10 +27,10 @@ See [`docs/CANON_BOUNDARIES.md`](docs/CANON_BOUNDARIES.md).
 
 ## Local setup
 
-Requirements: a current Node 22 runtime and npm.
+Requirements: a current Node 22 runtime and npm. The repository does not yet contain a generated `package-lock.json`, so the first network-capable checkout must install the exact pinned dependencies with `npm install --ignore-scripts`. Once the resulting lockfile is reviewed and committed, clean checkouts should use `npm ci`.
 
 ```bash
-npm ci
+npm install --ignore-scripts
 npm run dev
 ```
 
@@ -51,6 +51,7 @@ Then open the local Vite address shown in the terminal.
 
 - drag to rotate;
 - scroll/pinch to zoom;
+- keyboard: focus the viewport, use the arrow keys to move the selected simulation cell, then press Enter or Space to deploy/inspect according to the current placement mode;
 - reset camera from the timeline bar;
 - select inspection layers: NORMAL, CRUST, HYDROLOGY, ATMOSPHERE, BIOSPHERE, FEEDSTOCK, DRAKKEN, PROVENANCE, and COMPARISON.
 
@@ -86,7 +87,7 @@ npm test
 npm run build
 ```
 
-The focused suite checks determinism, water conservation, material conservation, Ringthroat prerequisites, snapshot restoration, branch common history, branch divergence, and stable process ordering. CI also rejects runtime networking and authoritative `Math.random()` use.
+The focused suite checks determinism, water conservation, material conservation, Ringthroat prerequisites, snapshot restoration, stale-snapshot invalidation, frozen branch inheritance, derived-event replay after past edits, branch divergence, stable process ordering, keyboard grid navigation, seed parsing, and process telemetry. CI also rejects runtime networking and authoritative `Math.random()` use.
 
 See [`docs/VALIDATION.md`](docs/VALIDATION.md).
 

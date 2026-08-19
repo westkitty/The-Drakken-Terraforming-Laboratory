@@ -60,7 +60,7 @@ export interface OrbitalInventory {
 }
 
 export interface TimelineEvent { tick: number; branchId: string; type: string; message: string; }
-export interface BranchRecord { id: string; parentId: string | null; forkTick: number; actions: ProcessAction[]; }
+export interface BranchRecord { id: string; parentId: string | null; forkTick: number; inheritedActions: ProcessAction[]; actions: ProcessAction[]; }
 export interface PlanetSnapshot { tick: number; branchId: string; state: PlanetStateData; hash: string; }
 
 export interface PlanetStateData {

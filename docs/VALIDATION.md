@@ -153,6 +153,26 @@ The repository test suite contains focused tests for:
 
 Equivalent authoritative-simulation assertions were executed directly and passed as described above. The Vitest runner itself remains unverified until the pinned packages can be installed.
 
+## Bug sweep regression evidence — 2026-08-18
+
+A multi-pass defect sweep reproduced history-integrity failures before repair, then reran the same fixtures against the corrected implementation. Direct authoritative-simulation checks now pass for:
+
+- frozen child-branch inheritance after later same-tick parent edits (`466dc81f == 466dc81f`);
+- past-edit invalidation of future snapshots (`ef331f8a == ef331f8a`);
+- tick-zero action replay after the oldest snapshot is evicted (`15bfd56c == 15bfd56c`, retained snapshots: 64);
+- repeated rewind/replay stability (`2200215f`);
+- nested-fork isolation (`48b151a3`);
+- comparison/capture restoration of the active branch, tick, world hash, and process configuration (`0a03729a`);
+- regeneration of derived timeline milestones after a past edit invalidates future derived events.
+
+Pure dependency-free UI helpers were also compiled and executed directly:
+
+- keyboard cell navigation wraps longitude and clamps latitude: **PASS**;
+- Ringthroat telemetry reports `STARVED` only when no refined feedstock or in-flight queued/rising/orbital-loose material remains: **PASS**;
+- seed `0` remains a valid deterministic seed and numeric input is normalized to the simulation's uint32 seed domain: **PASS**.
+
+The DOM event wiring and real Three.js rendering for those UI fixes remain **implemented-unverified** because the browser policy blocker described below still prevents the application from loading in Chromium here.
+
 ## Current validation verdict
 
 **PARTIAL.** The difficult causal simulation core is directly executed and verified. The user-facing implementation and Three.js renderer are present and statically inspected, but dependency-backed build proof, lockfile proof, and real-browser proof are unavailable in the current execution environment and must not be upgraded to PASS without new evidence.

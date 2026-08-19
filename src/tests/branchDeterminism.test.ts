@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SimulationEngine } from '../simulation/SimulationEngine';
+import { SimulationEngine, hashPlanetState } from '../simulation/SimulationEngine';
 
 describe('branch history', () => {
   it('forked branch has identical world state at the fork tick', () => {
@@ -28,4 +28,33 @@ describe('branch history', () => {
     const c = e.compare('A', 'B', 60);
     expect(Math.abs(c.delta.oceanCoverage) + Math.abs(c.delta.averageCrustIntegrity)).toBeGreaterThan(0);
   });
+
+
+  it('freezes inherited actions at fork time so later parent edits cannot leak into the child', () => {
+    const e = new SimulationEngine(5101);
+    e.step(25);
+    e.fork('B', 25);
+    const childBefore = e.captureState('B', 26);
+
+    e.switchBranch('A', 25);
+    e.deploy('fault-tongue', 0, 0, 30, 1);
+    const childAfter = e.captureState('B', 26);
+
+    expect(hashPlanetState(childAfter)).toBe(hashPlanetState(childBefore));
+  });
+
+
+  it('comparison and capture replay do not mutate the timeline event log', () => {
+    const e = new SimulationEngine(19870615);
+    e.step(25);
+    e.fork('B', 25);
+    e.switchBranch('A', 25);
+    const eventsBefore = e.events.map(event => ({ ...event }));
+
+    e.compare('A', 'B', 25);
+    e.captureState('B', 25);
+
+    expect(e.events).toEqual(eventsBefore);
+  });
+
 });

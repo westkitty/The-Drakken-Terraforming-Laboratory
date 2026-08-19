@@ -184,4 +184,4 @@ Renderer objects and branch labels are excluded. Equal pre-fork worlds therefore
 
 ## Snapshot storage
 
-A snapshot is recorded every 25 ticks and the retained list is capped at 64 snapshots per branch. This bounds memory. Restore uses the nearest available branch snapshot at or before the target and replays deterministic actions/ticks forward from that boundary.
+A snapshot is recorded every 25 ticks and the retained list is capped at 64 snapshots per branch. This bounds memory. Restore uses the nearest available branch snapshot at or before the target and replays deterministic actions/ticks forward from that boundary. Branches freeze inherited actions at fork time. If a new action is inserted in the past, future snapshots for that branch are discarded before replay so stale state cannot survive the edit. If the original tick-zero snapshot has been evicted, replay begins from the generated baseline and still applies tick-zero actions. Derived milestone events invalidated by a past edit are regenerated during user-facing replay.
