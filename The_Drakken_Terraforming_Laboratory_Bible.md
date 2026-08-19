@@ -747,3 +747,92 @@ State After Completion:
 
 Next Step / Handoff:
 - The next meaningful evidence is the user's actual first look using `docs/FIRST_LOOK.md`. Do not perform another speculative pre-look polish cycle. If the user identifies a visual/interaction issue, repair that evidence-backed issue. If performance becomes a concern, run `docs/PERFORMANCE_BENCHMARK.md` on representative target hardware.
+
+
+### Entry 12 - Final pre-test defect sweep and error-correction release
+Summary:
+- Completed the final bounded defect sweep requested before human testing and squash-merged PR #4 to `main` as `b353be7d78bf8c1a3e6d41ec063cac2c46a7838e`.
+- Repaired periodic renderer longitude mapping, periodic seeded planet generation, full-precision scalar state hashing, targeting-state synchronization, and browser-exposed pointer-hover erasure of explicit deployment/history-lock feedback.
+- Reconciled `docs/VALIDATION.md` in commit `683eb9d9e11172469132a4390184913da17852ff` and promoted Operational State revision 6 in commit `2658d71fcd4a19ff7a5b3a83c39c16953844132e`.
+
+Reason / Intent:
+- Use one final evidence-driven sweep to catch correctness defects that automated source review and the first browser-validation release could still prove before the user's own first look.
+- Stop at the bounded defect boundary rather than redesigning simulation topology, adding features, changing dependencies, or performing subjective polish without user evidence.
+
+Confirmed Findings and Repairs:
+- **Periodic renderer seam:** the prior `uvToGridCell()` clamped longitude, so the duplicate spherical seam vertices at `u=0` and `u=1` could map to opposite authoritative edge cells. Longitude now wraps periodically, latitude clamps, and non-finite UV inputs normalize to a safe in-grid fallback.
+- **Artificial antimeridian scar:** seeded initial-world noise was not periodic across longitude even though process topology wraps. Measurement across 32 seeds x 64 latitude rows found the old median antimeridian elevation jump about 11.4 times the median ordinary neighboring-cell jump. Generator noise is now exactly periodic at `x=0` and `x=GRID_WIDTH` for all scales used by terrain, humidity, and crust fields.
+- **State-hash precision:** scalar JavaScript-number totals and Gorevault/orbital inventories were downcast to Float32 before hashing, allowing genuinely different sub-Float32 scalar states to share an integrity hash. Scalars now contribute their complete Float64 bit patterns.
+- **Stale targeting status:** play, rewind, fork, branch switch, and reset could leave deployment/history feedback inconsistent with the current authoritative navigation state. These transitions now re-derive current targeting text.
+- **Hover ownership defect:** final-sweep browser run `32261514650` passed 9/10 tests but showed pointer-hover immediately replacing `DEPLOYED · PRESS PLAY` after a click. Explicit deployment/history-lock messages now own the banner until a real navigation/mode/state transition clears the override.
+
+Files Changed by PR #4:
+- `src/render/gridUv.ts`
+- `src/tests/gridUv.test.ts`
+- `src/simulation/PlanetGenerator.ts`
+- `src/simulation/analysis/StateHasher.ts`
+- `src/tests/planetDeterminism.test.ts`
+- `src/ui/LaboratoryApp.ts`
+- `tests/browser/stress.spec.ts`
+
+Validation / Evidence:
+```text
+Final GitHub Actions run: 32262340227
+Exact validated PR head: 2b10b7ab0c4652f013e986641fd2a379c25e3a51
+Clean npm ci: PASS
+Runtime dependency audit: 0 vulnerabilities
+Strict TypeScript: PASS
+Vitest: 13 files / 46 tests PASS
+Current-generator stress: 16 seeds x 120 ticks PASS
+Full Gorevault -> Ringthroat pipeline fixture: PASS
+Vite 7.3.5 production build: PASS
+Fail-closed static safeguards: PASS
+Google Chrome 151.0.7922.108
+Playwright browser suite: 10 / 10 PASS
+Browser evidence artifact: 9368894009
+Artifact digest: sha256:829efd8a84c15662dea28a22fa86b6c41f5c7cdae7de9dfb4d74643f0bc448c3
+Diff-scope verifier: PASS
+```
+
+Final CI Lifecycle Smoke:
+```text
+Renderer: ANGLE / SwiftShader virtual software renderer
+DOMContentLoaded: 195.6 ms
+Load: 206.7 ms
+Frame samples: 473
+Frame p50: 50.0 ms
+Frame p95: 66.8 ms
+Frame p99: 83.4 ms
+Latest simulation step: about 0.829 ms
+Heap delta after 3 reset cycles: +424,396 bytes
+Renderer geometries: 3 baseline / 3 settled
+Renderer textures: 1 baseline / 1 settled
+Unique scene geometries: 3 baseline / 3 settled
+Unique scene materials: 3 baseline / 3 settled
+Frame-budget verdict: NOT_COMPARABLE to target hardware
+```
+
+Scope / Publication Discipline:
+- Final PR scope was seven authorized source/test files, 92 additions / 24 deletions.
+- No dependency, lockfile, framework, canon, asset, build-config, or visual-design expansion was accepted.
+- No generated artifacts, temporary trigger files, helper workflows, deletions, renames, or unrelated formatting churn remained in the PR.
+- Temporary branch-only patch helpers self-deleted. A bot-authored repair initially produced an `action_required` PR run and stale PR metadata; a temporary user-authored trigger was created and deleted, then PR #4 was closed/reopened to synchronize GitHub to the true branch head. This changed no product content.
+- Operational State revision 6 was schema-validated locally. Its first self-triggering publication helper did not execute; the exact validated blob was then published through GitHub's tree/commit API while deleting that helper in the same tree.
+
+Decisions:
+- Treat longitude as periodic and latitude as bounded everywhere the spherical renderer maps into the authoritative grid.
+- Preserve the existing 128 x 64 pole-row model for this release. Correctly changing the pole representation would alter the simulation model and requires a separate, intentional design/migration decision.
+- Treat the older 64-seed direct stress measurements as historical pre-periodic-generator evidence only; current-generator proof comes from the dependency-backed stress and full-pipeline fixtures in final run `32262340227`.
+- Keep explicit targeting feedback immune to incidental hover, but clear/re-derive it when authoritative navigation or mode state changes.
+- Keep SwiftShader frame-time data classified as lifecycle/smoke evidence only, never as target-hardware performance proof.
+- Do not perform another speculative pre-look bug/polish cycle without new evidence from the user's actual test.
+
+State After Completion:
+- Product/source baseline on `main`: `b353be7d78bf8c1a3e6d41ec063cac2c46a7838e`.
+- `docs/VALIDATION.md` contains current final-sweep evidence.
+- Operational State revision 6 governs the current release.
+- No unresolved confirmed causal-core, history, build, longitude-topology, state-hash, targeting-feedback, or primary-Chrome-journey defect remains from this sweep.
+- Overall project remains PARTIAL / partially verified only because automated evidence cannot establish the user's subjective visual judgment, representative physical-device/coarse-pointer feel, target-GPU performance, sustained thermals, or long-session target-device behavior.
+
+Next Step / Handoff:
+- The user should now perform the actual first look using `docs/FIRST_LOOK.md`. Any next repair should be driven by visible/user-experience evidence from that test. If performance becomes a concern, run `docs/PERFORMANCE_BENCHMARK.md` on representative target hardware rather than inferring from SwiftShader CI.
