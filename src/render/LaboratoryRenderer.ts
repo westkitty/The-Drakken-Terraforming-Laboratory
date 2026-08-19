@@ -21,6 +21,7 @@ export class LaboratoryRenderer {
   private dirty = true;
   private selectedIndex = -1;
   private comparisonState: PlanetState | null = null;
+  private ringStateKey = '';
   onCellPick?: (index: number, lat: number, lon: number) => void;
   onCellHover?: (index: number, lat: number, lon: number) => void;
 
@@ -28,6 +29,7 @@ export class LaboratoryRenderer {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.domElement.setAttribute('aria-hidden', 'true');
     container.append(this.renderer.domElement);
     this.camera.position.set(0, 0.4, 3.1);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -49,11 +51,11 @@ export class LaboratoryRenderer {
     this.resize();
   }
 
-  setLayer(layer: LayerId): void { this.layer = layer; this.dirty = true; }
+  setLayer(layer: LayerId): void { if (this.layer === layer) return; this.layer = layer; this.dirty = true; }
   markDirty(): void { this.dirty = true; }
   resetCamera(): void { this.camera.position.set(0, 0.4, 3.1); this.controls.target.set(0,0,0); this.controls.update(); }
-  setSelected(index: number): void { this.selectedIndex = index; this.dirty = true; }
-  setComparisonState(state: PlanetState | null): void { this.comparisonState = state; this.dirty = true; }
+  setSelected(index: number): void { if (this.selectedIndex === index) return; this.selectedIndex = index; this.dirty = true; }
+  setComparisonState(state: PlanetState | null): void { if (this.comparisonState === state) return; this.comparisonState = state; this.dirty = true; }
 
   render(): void {
     if (this.dirty) { this.updatePlanet(); this.updateAtmosphere(); this.updateRing(); this.dirty = false; }
@@ -86,33 +88,44 @@ export class LaboratoryRenderer {
   }
 
   private updateRing(): void {
+    const o = this.engine.state.orbital;
+    const activeRings = [...this.engine.processes.values()].filter(p => p.active && p.processId === 'ringthroat').slice(0, 3);
+    const stateKey = [
+      o.shapedBandMaterial, o.bandIntegrity, o.continuity, o.risingMaterial,
+      ...activeRings.map(process => `${process.id}:${process.lat}:${process.lon}`)
+    ].join('|');
+    if (stateKey === this.ringStateKey) return;
+    this.ringStateKey = stateKey;
     disposeGroup(this.ringGroup);
     this.ringGroup.clear();
-    const o = this.engine.state.orbital; if (o.shapedBandMaterial <= 0.001) return;
-    const segments = 96; const covered = Math.max(1, Math.floor(segments * o.bandCoverage));
-    const positions: number[] = [];
-    for (let s = 0; s < covered; s++) {
-      const a0 = (s / segments) * Math.PI * 2; const a1 = ((s + 0.82) / segments) * Math.PI * 2;
-      const jitter0 = 0.018 * Math.sin(s * 12.9898 + this.engine.seed * 0.001); const jitter1 = 0.018 * Math.sin((s+1) * 12.9898 + this.engine.seed * 0.001);
-      const r0 = 1.34 + jitter0; const r1 = 1.34 + jitter1; const w = 0.015 + o.bandIntegrity * 0.035;
-      positions.push(Math.cos(a0)*(r0-w),0,Math.sin(a0)*(r0-w), Math.cos(a0)*(r0+w),0,Math.sin(a0)*(r0+w), Math.cos(a1)*(r1+w),0,Math.sin(a1)*(r1+w));
-      positions.push(Math.cos(a0)*(r0-w),0,Math.sin(a0)*(r0-w), Math.cos(a1)*(r1+w),0,Math.sin(a1)*(r1+w), Math.cos(a1)*(r1-w),0,Math.sin(a1)*(r1-w));
+
+    if (o.shapedBandMaterial > 0.001) {
+      const segments = 96; const covered = Math.max(1, Math.floor(segments * o.bandCoverage));
+      const segmentSpan = 0.72 + Math.min(1, o.continuity) * 0.28;
+      const positions: number[] = [];
+      for (let s = 0; s < covered; s++) {
+        const a0 = (s / segments) * Math.PI * 2; const a1 = ((s + segmentSpan) / segments) * Math.PI * 2;
+        const jitter0 = 0.018 * Math.sin(s * 12.9898 + this.engine.seed * 0.001); const jitter1 = 0.018 * Math.sin((s+1) * 12.9898 + this.engine.seed * 0.001);
+        const r0 = 1.34 + jitter0; const r1 = 1.34 + jitter1; const w = 0.015 + o.bandIntegrity * 0.035;
+        positions.push(Math.cos(a0)*(r0-w),0,Math.sin(a0)*(r0-w), Math.cos(a0)*(r0+w),0,Math.sin(a0)*(r0+w), Math.cos(a1)*(r1+w),0,Math.sin(a1)*(r1+w));
+        positions.push(Math.cos(a0)*(r0-w),0,Math.sin(a0)*(r0-w), Math.cos(a1)*(r1+w),0,Math.sin(a1)*(r1+w), Math.cos(a1)*(r1-w),0,Math.sin(a1)*(r1-w));
+      }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); geo.computeVertexNormals();
+      const mat = new THREE.MeshStandardMaterial({ color: 0x8e1730, emissive: 0x22030a, transparent: true, opacity: 0.68, roughness: 0.34, metalness: 0.18, side: THREE.DoubleSide });
+      const band = new THREE.Mesh(geo, mat); band.rotation.x = 0.18; band.rotation.z = -0.11; this.ringGroup.add(band);
+      const inclusions: number[] = [];
+      for (let s = 0; s < covered; s += 5) {
+        const a = ((s + 0.41) / segments) * Math.PI * 2;
+        const r = 1.34 + 0.012 * Math.sin(s * 4.713 + this.engine.seed * 0.0007);
+        inclusions.push(Math.cos(a) * r, 0.006 * Math.sin(s * 1.17), Math.sin(a) * r);
+      }
+      if (inclusions.length) {
+        const inclusionGeo = new THREE.BufferGeometry(); inclusionGeo.setAttribute('position', new THREE.Float32BufferAttribute(inclusions, 3));
+        const inclusionMat = new THREE.PointsMaterial({ color: 0x17080d, size: 0.018, sizeAttenuation: true, transparent: true, opacity: 0.9 });
+        const points = new THREE.Points(inclusionGeo, inclusionMat); points.rotation.copy(band.rotation); this.ringGroup.add(points);
+      }
     }
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); geo.computeVertexNormals();
-    const mat = new THREE.MeshStandardMaterial({ color: 0x8e1730, emissive: 0x22030a, transparent: true, opacity: 0.68, roughness: 0.34, metalness: 0.18, side: THREE.DoubleSide });
-    const band = new THREE.Mesh(geo, mat); band.rotation.x = 0.18; band.rotation.z = -0.11; this.ringGroup.add(band);
-    const inclusions: number[] = [];
-    for (let s = 0; s < covered; s += 5) {
-      const a = ((s + 0.41) / segments) * Math.PI * 2;
-      const r = 1.34 + 0.012 * Math.sin(s * 4.713 + this.engine.seed * 0.0007);
-      inclusions.push(Math.cos(a) * r, 0.006 * Math.sin(s * 1.17), Math.sin(a) * r);
-    }
-    if (inclusions.length) {
-      const inclusionGeo = new THREE.BufferGeometry(); inclusionGeo.setAttribute('position', new THREE.Float32BufferAttribute(inclusions, 3));
-      const inclusionMat = new THREE.PointsMaterial({ color: 0x17080d, size: 0.018, sizeAttenuation: true, transparent: true, opacity: 0.9 });
-      const points = new THREE.Points(inclusionGeo, inclusionMat); points.rotation.copy(band.rotation); this.ringGroup.add(points);
-    }
-    const activeRings = [...this.engine.processes.values()].filter(p => p.active && p.processId === 'ringthroat').slice(0, 3);
+
     if (o.risingMaterial > 0.001) for (const activeRing of activeRings) {
       const lat = activeRing.lat * Math.PI/180; const lon = activeRing.lon * Math.PI/180;
       const p0 = new THREE.Vector3(Math.cos(lat)*Math.cos(lon), Math.sin(lat), Math.cos(lat)*Math.sin(lon)).multiplyScalar(1.01);
@@ -135,7 +148,7 @@ export class LaboratoryRenderer {
   dispose(): void {
     window.removeEventListener('resize', this.resize); this.controls.dispose(); this.geometry.dispose(); this.material.dispose();
     (this.atmosphere.geometry as THREE.BufferGeometry).dispose(); (this.atmosphere.material as THREE.Material).dispose();
-    disposeGroup(this.ringGroup);
+    disposeGroup(this.ringGroup); this.ringGroup.clear();
     this.renderer.dispose(); this.renderer.domElement.remove();
   }
 }
