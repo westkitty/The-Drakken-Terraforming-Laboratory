@@ -146,8 +146,10 @@ export class SimulationEngine {
     const targetTick = Math.max(0, Math.floor(forkTick));
     this.restore(targetTick, parentId);
     const inheritedActions = this.actionsForBranch(parentId).filter(action => action.tick <= targetTick).map(action => ({ ...action }));
+    const inheritedEvents = this.timelineEvents(parentId, targetTick).map(event => ({ ...event, branchId: newId }));
     this.branches.set(newId, { id: newId, parentId, forkTick: targetTick, inheritedActions, actions: [] });
     this.state.branchId = newId;
+    this.events.push(...inheritedEvents);
     this.events.push({ tick: targetTick, branchId: newId, type: 'BRANCH CREATED', message: `Branch ${newId} forked from ${parentId}` });
     this.snapshot();
   }
@@ -167,6 +169,22 @@ export class SimulationEngine {
     return { a, b, delta };
   }
 
+  timelineEvents(branchId = this.state.branchId, throughTick = this.state.tick): TimelineEvent[] {
+    return this.events.filter(event => event.branchId === branchId && event.tick <= throughTick).map(event => ({ ...event }));
+  }
+
+  editableFromTick(branchId = this.state.branchId): number {
+    const branch = this.branches.get(branchId);
+    if (!branch) throw new Error(`Unknown branch ${branchId}`);
+    let floor = branch.parentId ? branch.forkTick : 0;
+    for (const child of this.branches.values()) if (child.parentId === branchId) floor = Math.max(floor, child.forkTick);
+    return floor;
+  }
+
+  canMutateAt(tick = this.state.tick, branchId = this.state.branchId): boolean {
+    return tick >= this.editableFromTick(branchId);
+  }
+
   selectedCell(index: number): Record<string, number | string> {
     const causeNames = ['none', 'Fault-Tongue', 'Cloudmaw', 'Gorevault', 'Ringthroat', 'environmental consequence'];
     return {
@@ -183,6 +201,8 @@ export class SimulationEngine {
   private recordAction(action: ProcessAction): void {
     const branch = this.branches.get(this.state.branchId);
     if (!branch) throw new Error(`Unknown branch ${this.state.branchId}`);
+    const editableFrom = this.editableFromTick(branch.id);
+    if (action.tick < editableFrom) throw new Error(`Branch ${branch.id} history is frozen before tick ${editableFrom}`);
     branch.actions.push({ ...action });
     this.snapshots.truncateAfter(branch.id, action.tick);
     for (let i = this.events.length - 1; i >= 0; i--) {
@@ -239,6 +259,9 @@ export class SimulationEngine {
   }
 
   private generateThresholdEvents(): void {
+    if (this.state.orbital.closed && !this.events.some(event => event.branchId === this.state.branchId && event.type === 'ORBITAL BAND CLOSED')) {
+      this.events.push({ tick: this.state.tick, branchId: this.state.branchId, type: 'ORBITAL BAND CLOSED', message: 'Blood Ring structural continuity reached' });
+    }
     if (this.state.tick % 25 !== 0) return;
     const metrics = this.metrics();
     const milestones: Array<[number, string, 'ocean' | 'band']> = [
@@ -249,9 +272,6 @@ export class SimulationEngine {
       const value = kind === 'ocean' ? metrics.oceanCoverage : metrics.bandCoverage;
       const already = this.events.some(event => event.branchId === this.state.branchId && event.type === label);
       if (value >= threshold && !already) this.events.push({ tick: this.state.tick, branchId: this.state.branchId, type: label, message: label });
-    }
-    if (this.state.orbital.closed && !this.events.some(event => event.branchId === this.state.branchId && event.type === 'ORBITAL BAND CLOSED')) {
-      this.events.push({ tick: this.state.tick, branchId: this.state.branchId, type: 'ORBITAL BAND CLOSED', message: 'Blood Ring structural continuity reached' });
     }
   }
 }

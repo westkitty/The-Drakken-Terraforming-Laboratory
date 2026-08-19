@@ -29,20 +29,16 @@ describe('branch history', () => {
     expect(Math.abs(c.delta.oceanCoverage) + Math.abs(c.delta.averageCrustIntegrity)).toBeGreaterThan(0);
   });
 
-
   it('freezes inherited actions at fork time so later parent edits cannot leak into the child', () => {
     const e = new SimulationEngine(5101);
     e.step(25);
     e.fork('B', 25);
     const childBefore = e.captureState('B', 26);
-
     e.switchBranch('A', 25);
     e.deploy('fault-tongue', 0, 0, 30, 1);
     const childAfter = e.captureState('B', 26);
-
     expect(hashPlanetState(childAfter)).toBe(hashPlanetState(childBefore));
   });
-
 
   it('comparison and capture replay do not mutate the timeline event log', () => {
     const e = new SimulationEngine(19870615);
@@ -50,11 +46,21 @@ describe('branch history', () => {
     e.fork('B', 25);
     e.switchBranch('A', 25);
     const eventsBefore = e.events.map(event => ({ ...event }));
-
     e.compare('A', 'B', 25);
     e.captureState('B', 25);
-
     expect(e.events).toEqual(eventsBefore);
   });
 
+  it('keeps shared pre-fork history immutable on both parent and child branches', () => {
+    const e = new SimulationEngine(5102);
+    e.step(25);
+    e.fork('B', 25);
+    e.restore(10, 'B');
+    expect(() => e.deploy('cloudmaw', 0, 0, 18, 0.7)).toThrow(/history is frozen before tick 25/);
+    e.restore(10, 'A');
+    expect(() => e.deploy('fault-tongue', 0, 0, 18, 0.7)).toThrow(/history is frozen before tick 25/);
+    expect(hashPlanetState(e.captureState('A', 10))).toBe(hashPlanetState(e.captureState('B', 10)));
+    e.restore(25, 'A');
+    expect(() => e.deploy('fault-tongue', 0, 0, 18, 0.7)).not.toThrow();
+  });
 });

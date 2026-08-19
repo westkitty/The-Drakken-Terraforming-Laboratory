@@ -103,7 +103,7 @@ export class LaboratoryApp {
     this.renderer.onCellHover=(i,lat,lon)=>{this.must('targeting').textContent=`${lat.toFixed(1)}° / ${lon.toFixed(1)}° · CELL ${i}`;};
   }
   private activateCell(i:number,lat:number,lon:number):void{
-    if(this.placement){this.engine.deploy(this.selectedProcess,lat,lon,this.num('radius'),this.num('intensity'));this.renderer.markDirty();this.refresh();}
+    if(this.placement){if(!this.engine.canMutateAt()){this.must('targeting').textContent=`HISTORY LOCKED · ${this.engine.state.branchId} EDITS BEGIN TICK ${this.engine.editableFromTick()}`;return;}this.engine.deploy(this.selectedProcess,lat,lon,this.num('radius'),this.num('intensity'));this.renderer.markDirty();this.refresh();}
     else this.selectCell(i);
   }
   private onViewportKeydown=(event:KeyboardEvent):void=>{
@@ -125,9 +125,10 @@ export class LaboratoryApp {
     const coordinates=cellToLatLon(this.selectedCell);
     this.must('inspector').innerHTML=`<div class="metric-grid"><span>COORDINATES<b>${coordinates.lat.toFixed(1)}° / ${coordinates.lon.toFixed(1)}°</b></span>${Object.entries(cell).map(([k,v])=>`<span>${label(k)}<b>${typeof v==='number'?fmt(v):v}</b></span>`).join('')}</div>`;
     const g=s.gorevault,o=s.orbital,ledger=this.engine.ledger();this.must('ledger').innerHTML=[['WATER MASS',m.waterMass],['WATER DRIFT',m.waterDrift],['CONVERTIBLE REMAINING',m.convertibleRemaining],['ENV RESIDUE',ledger.environmentalResidueMass],['HARVESTED',g.totalHarvested],['PIPELINE ACCOUNTED',ledger.pipelineAccounted],['PIPELINE ERROR',ledger.pipelineError],['SYSTEM ERROR',ledger.systemError],['REFINED FEEDSTOCK',g.refinedFeedstock],['RISING MATERIAL',o.risingMaterial],['ORBITAL LOOSE',o.orbitalLooseMaterial],['SHAPED BAND',o.shapedBandMaterial],['BAND COVERAGE',o.bandCoverage],['BAND INTEGRITY',o.bandIntegrity]].map(([k,v])=>`<span>${k}<b>${fmt(Number(v))}</b></span>`).join('');
-    this.must('instances').innerHTML=[...this.engine.processes.values()].map(p=>`<div><b>${display(p.processId)}</b><span>${p.id} · ${processStatus(p.processId,p.active,g.refinedFeedstock,o.queuedForLift+o.risingMaterial+o.orbitalLooseMaterial)}</span><button data-toggle="${p.id}">${p.active?'DEACTIVATE':'ACTIVATE'}</button></div>`).join('')||'<p>NO ACTIVE PROCESS INSTANCES</p>';
+    const historyEditable=this.engine.canMutateAt();
+    this.must('instances').innerHTML=[...this.engine.processes.values()].map(p=>`<div><b>${display(p.processId)}</b><span>${p.id} · ${processStatus(p.processId,p.active,g.refinedFeedstock,o.queuedForLift+o.risingMaterial+o.orbitalLooseMaterial)}</span><button data-toggle="${p.id}" ${historyEditable?'':'disabled'}>${p.active?'DEACTIVATE':'ACTIVATE'}</button></div>`).join('')||'<p>NO ACTIVE PROCESS INSTANCES</p>';
     this.root.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach(b=>b.addEventListener('click',()=>{const p=this.engine.processes.get(b.dataset.toggle!);if(p){this.engine.setProcessActive(p.id,!p.active);this.refresh();}}));
-    const ev=this.engine.events.filter(e=>e.branchId===s.branchId).slice(-7);this.must('events').innerHTML=ev.map(e=>`<span><b>${e.tick}</b>${e.type}</span>`).join('')||'<span>NO EVENTS</span>';
+    const ev=this.engine.timelineEvents(s.branchId,s.tick).slice(-7);this.must('events').innerHTML=ev.map(e=>`<span><b>${e.tick}</b>${e.type}</span>`).join('')||'<span>NO EVENTS</span>';
     if(this.engine.branches.has('B')){const tick=s.tick;const other=s.branchId==='A'?'B':'A';const key=`${s.branchId}:${other}:${tick}`;if(key!==this.comparisonCacheKey||!this.comparisonDelta){const c=this.engine.compare('A','B',tick);this.comparisonDelta=c.delta;this.renderer.setComparisonState(this.engine.captureState(other,tick));this.comparisonCacheKey=key;}const delta=this.comparisonDelta;this.must('compare').innerHTML=`<p class="compare-note">A/B DELTA layer: crimson = active branch more transformed; azure = comparison branch more transformed.</p><div class="metric-grid">${(['oceanCoverage','biosphereRemaining','averageCrustIntegrity','populationRemaining','refinedFeedstock','orbitalMaterial','bandCoverage'] as const).map(k=>`<span>${label(k)}<b>${fmt(delta[k])}</b></span>`).join('')}</div>`;}else{this.must('compare').innerHTML='<p>Fork Branch B to compare deterministic futures.</p>';this.renderer.setComparisonState(null);this.comparisonCacheKey='';this.comparisonDelta=null;}
   }
 
