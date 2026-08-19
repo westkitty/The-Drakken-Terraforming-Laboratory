@@ -1,0 +1,89 @@
+name: Final sweep bounded patch
+
+on:
+  push:
+    branches: [final-bug-sweep-20260819]
+    paths: [.github/workflows/final-sweep-patch.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: final-bug-sweep-20260819
+      - name: Apply targeting-state synchronization and browser regressions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          app = Path('src/ui/LaboratoryApp.ts')
+          text = app.read_text()
+          replacements = [
+              (
+                  """    this.must('play').addEventListener('click', () => {\n      this.playing = !this.playing;\n      this.must('play').textContent = this.playing ? 'PAUSE' : 'PLAY';\n    });""",
+                  """    this.must('play').addEventListener('click', () => {\n      this.playing = !this.playing;\n      this.must('play').textContent = this.playing ? 'PAUSE' : 'PLAY';\n      this.updateTargetingForSelectedCell();\n    });""",
+              ),
+              (
+                  """      this.engine.restore(Number(this.must<HTMLInputElement>('timeline').value));\n      this.invalidateUiCaches();""",
+                  """      this.engine.restore(Number(this.must<HTMLInputElement>('timeline').value));\n      this.updateTargetingForSelectedCell();\n      this.invalidateUiCaches();""",
+              ),
+              (
+                  """    this.must('fork').addEventListener('click', () => {\n      if (!this.engine.branches.has('B')) this.engine.fork('B');\n      this.invalidateUiCaches();""",
+                  """    this.must('fork').addEventListener('click', () => {\n      if (!this.engine.branches.has('B')) this.engine.fork('B');\n      this.updateTargetingForSelectedCell();\n      this.invalidateUiCaches();""",
+              ),
+              (
+                  """    this.invalidateUiCaches();\n    this.renderer.setSelected(this.selectedCell);\n    this.refresh(true);""",
+                  """    this.invalidateUiCaches();\n    this.renderer.setSelected(this.selectedCell);\n    this.updateTargetingForSelectedCell();\n    this.refresh(true);""",
+              ),
+              (
+                  """  private switchBranch(id: string): void {\n    this.engine.switchBranch(id);\n    this.invalidateUiCaches();""",
+                  """  private switchBranch(id: string): void {\n    this.engine.switchBranch(id);\n    this.updateTargetingForSelectedCell();\n    this.invalidateUiCaches();""",
+              ),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected exactly one LaboratoryApp replacement, found {text.count(old)}: {old[:80]!r}')
+              text = text.replace(old, new)
+          app.write_text(text)
+
+          stress = Path('tests/browser/stress.spec.ts')
+          text = stress.read_text()
+          replacements = [
+              (
+                  """  await selectProcess(page, 'fault-tongue');\n  await clickGlobe(page, 0.5, 0.5);\n  await page.locator('#speed').selectOption('4');\n  await runUntilTick(page, 40);\n  await setTimelineTick(page, 20);\n  await page.locator('#fork').click();""",
+                  """  await selectProcess(page, 'fault-tongue');\n  await clickGlobe(page, 0.5, 0.5);\n  await expect(page.locator('#targeting')).toContainText('DEPLOYED');\n  await expect(page.locator('#targeting')).toContainText('PRESS PLAY');\n  await page.locator('#speed').selectOption('4');\n  await runUntilTick(page, 40);\n  await expect(page.locator('#targeting')).not.toContainText('PRESS PLAY');\n  await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');\n  await setTimelineTick(page, 20);\n  await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');\n  await page.locator('#fork').click();""",
+              ),
+              (
+                  """  for (let i = 0; i < 8; i++) await page.locator(i % 2 === 0 ? '#switchB' : '#switchA').click();\n\n  for (const layer""",
+                  """  for (let i = 0; i < 8; i++) await page.locator(i % 2 === 0 ? '#switchB' : '#switchA').click();\n  await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');\n\n  for (const layer""",
+              ),
+              (
+                  """    await page.locator('#regenerate').click();\n    await expect(page.locator('#viewport canvas')).toHaveCount(1);\n    expect((await diagnostics(page)).tick).toBe(0);""",
+                  """    await page.locator('#regenerate').click();\n    await expect(page.locator('#viewport canvas')).toHaveCount(1);\n    expect((await diagnostics(page)).tick).toBe(0);\n    await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');\n    await expect(page.locator('#targeting')).not.toContainText('HISTORY LOCKED');\n    await expect(page.locator('#targeting')).toMatchAriaSnapshot;""",
+              ),
+          ]
+          # The last replacement intentionally avoids a custom matcher below; replace it with a plain text-state assertion.
+          replacements[-1] = (
+              replacements[-1][0],
+              """    await page.locator('#regenerate').click();\n    await expect(page.locator('#viewport canvas')).toHaveCount(1);\n    expect((await diagnostics(page)).tick).toBe(0);\n    await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');\n    await expect(page.locator('#targeting')).not.toContainText('HISTORY LOCKED');\n    await expect(page.locator('#targeting')).toContainText(/PLACEMENT|INSPECT/);""",
+          )
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected exactly one stress replacement, found {text.count(old)}: {old[:80]!r}')
+              text = text.replace(old, new)
+          stress.write_text(text)
+          PY
+      - name: Self-clean and commit bounded patch
+        run: |
+          rm .github/workflows/final-sweep-patch.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/ui/LaboratoryApp.ts tests/browser/stress.spec.ts .github/workflows/final-sweep-patch.yml
+          git diff --cached --check
+          git commit -m 'Synchronize targeting status with authoritative navigation'
+          git push origin HEAD:final-bug-sweep-20260819
