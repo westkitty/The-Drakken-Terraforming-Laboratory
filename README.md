@@ -27,14 +27,14 @@ See [`docs/CANON_BOUNDARIES.md`](docs/CANON_BOUNDARIES.md).
 
 ## Local setup
 
-Requirements: a current Node 22 runtime and npm. The repository does not yet contain a generated `package-lock.json`, so the first network-capable checkout must install the exact pinned dependencies with `npm install --ignore-scripts`. Once the resulting lockfile is reviewed and committed, clean checkouts should use `npm ci`.
+Requirements: a current Node 22 runtime and npm. Dependency versions are pinned in `package.json` and `package-lock.json`.
 
 ```bash
-npm install --ignore-scripts
+npm ci
 npm run dev
 ```
 
-Then open the local Vite address shown in the terminal.
+Then open the local Vite address shown in the terminal. For a compact tour of the causality model, use [`docs/FIRST_LOOK.md`](docs/FIRST_LOOK.md).
 
 ## Controls
 
@@ -78,17 +78,18 @@ PlanetState -> Laboratory DOM UI
 
 Simulation truth is never read back from scene transforms or materials. One DOM-owned animation loop renders the scene and consumes bounded fixed simulation steps. Procedural behavior uses explicit seeded integer hashing rather than `Math.random()`.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/SIMULATION_MODEL.md`](docs/SIMULATION_MODEL.md).
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SIMULATION_MODEL.md`](docs/SIMULATION_MODEL.md), and [`docs/PROJECT_HEALTH.md`](docs/PROJECT_HEALTH.md).
 
 ## Testing
 
 ```bash
 npm run typecheck
 npm test
+npm run test:stress
 npm run build
 ```
 
-The focused suite checks determinism, water conservation, material conservation, Ringthroat prerequisites, snapshot restoration, stale-snapshot invalidation, frozen branch inheritance, derived-event replay after past edits, branch divergence, stable process ordering, keyboard grid navigation, seed parsing, and process telemetry. CI also rejects runtime networking and authoritative `Math.random()` use.
+The suite checks determinism, water and material conservation, Ringthroat prerequisites, snapshot restoration, stale-snapshot invalidation, frozen branch inheritance, derived-event replay after past edits, branch divergence, stable process ordering, engine-boundary failure states, keyboard grid navigation, seed parsing, process telemetry, multi-seed stress invariants, and a lawful Gorevault → Ringthroat closure path. CI also rejects runtime networking and authoritative `Math.random()` use.
 
 See [`docs/VALIDATION.md`](docs/VALIDATION.md).
 

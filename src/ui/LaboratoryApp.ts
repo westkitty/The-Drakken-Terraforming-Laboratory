@@ -1,14 +1,15 @@
 import { LaboratoryRenderer } from '../render/LaboratoryRenderer';
+import { cellToLatLon } from '../simulation/PlanetGenerator';
+import { DRAKKEN_PROCESS_REGISTRY, PROCESS_ORDER } from '../simulation/processRegistry';
 import { SimulationEngine, type Metrics } from '../simulation/SimulationEngine';
 import type { LayerId, ProcessId } from '../simulation/types';
-import { cellToLatLon } from '../simulation/PlanetGenerator';
 import { isGridNavigationKey, moveGridSelection } from './gridKeyboard';
 import { processStatus } from './processTelemetry';
 import { DEFAULT_PLANET_SEED, parsePlanetSeed } from './seedInput';
-import { DRAKKEN_PROCESS_REGISTRY, PROCESS_ORDER } from '../simulation/processRegistry';
 
 const BASE_TICKS_PER_SECOND = 8;
 const MAX_CATCH_UP_STEPS = 24;
+const LAYERS: LayerId[] = ['normal', 'crust', 'hydrology', 'atmosphere', 'biosphere', 'feedstock', 'drakken', 'provenance', 'comparison'];
 
 export class LaboratoryApp {
   private engine = new SimulationEngine();
@@ -30,113 +31,441 @@ export class LaboratoryApp {
   private frameCounter = 0;
   private fpsClock = performance.now();
   private simStepMs = 0;
+  private hashCacheKey = '';
+  private hashCache = '';
+  private ledgerRenderKey = '';
+  private inspectorRenderKey = '';
+  private instancesRenderKey = '';
+  private eventsRenderKey = '';
+  private quickStartVisible = true;
 
   constructor(root: HTMLElement) {
     this.root = root;
     this.build();
     this.renderer = new LaboratoryRenderer(this.must('viewport'), this.engine);
     this.configureRenderer();
-    this.bind(); this.selectCell(Math.floor(this.engine.state.elevation.length/2)); this.refresh(); this.frameId = requestAnimationFrame(this.loop);
+    this.bind();
+    this.selectCell(Math.floor(this.engine.state.elevation.length / 2));
+    this.refresh(true);
+    this.frameId = requestAnimationFrame(this.loop);
   }
 
   private build(): void {
     this.root.innerHTML = `
       <main class="lab-shell">
-        <header class="topbar"><div><p class="eyebrow">DRAKKEN TERRAFORMING LABORATORY</p><h1>Planetary Causality Instrument</h1></div><div class="statusline" id="statusline"></div></header>
+        <header class="topbar">
+          <div class="titleblock">
+            <p class="eyebrow">DRAKKEN TERRAFORMING LABORATORY</p>
+            <h1>Planetary Causality Instrument</h1>
+          </div>
+          <div class="statusline" id="statusline" aria-label="Simulation status"></div>
+        </header>
+
         <aside class="panel rack" aria-label="Experiment rack">
-          <h2>EXPERIMENT RACK</h2>
-          <label>PLANET SEED <input id="seed" type="number" value="${DEFAULT_PLANET_SEED}" /></label><button id="regenerate">REGENERATE / RESET</button>
-          <div class="process-grid">${PROCESS_ORDER.map((id,n)=>`<button class="process-card ${n===0?'selected':''}" data-process="${id}" aria-pressed="${n===0}"><strong>${DRAKKEN_PROCESS_REGISTRY[id].displayName}</strong><span><b>CANON FUNCTION</b>${DRAKKEN_PROCESS_REGISTRY[id].canonFunction}</span><span><b>LAB MODEL</b>${DRAKKEN_PROCESS_REGISTRY[id].labModel}</span></button>`).join('')}</div>
+          <div class="panel-heading">
+            <div><p class="section-kicker">01 · CONFIGURE</p><h2>EXPERIMENT RACK</h2></div>
+            <span class="mode-chip" id="modechip">PLACEMENT</span>
+          </div>
+          <label>PLANET SEED <input id="seed" type="number" value="${DEFAULT_PLANET_SEED}" /></label>
+          <button id="regenerate" class="wide-control">REGENERATE / RESET</button>
+          <div class="process-grid">
+            ${PROCESS_ORDER.map((id, n) => `
+              <button class="process-card ${n === 0 ? 'selected' : ''}" data-process="${id}" aria-pressed="${n === 0}">
+                <strong>${DRAKKEN_PROCESS_REGISTRY[id].displayName}</strong>
+                <span><b>CANON FUNCTION</b>${DRAKKEN_PROCESS_REGISTRY[id].canonFunction}</span>
+                <span><b>LAB MODEL</b>${DRAKKEN_PROCESS_REGISTRY[id].labModel}</span>
+              </button>`).join('')}
+          </div>
           <label>INTENSITY <input id="intensity" type="range" min="0.1" max="1" value="0.65" step="0.05"><output id="intensityOut">0.65</output></label>
           <label>INFLUENCE RADIUS <input id="radius" type="range" min="4" max="40" value="18" step="1"><output id="radiusOut">18°</output></label>
-          <button id="placement" class="active" aria-pressed="true">PLACEMENT ARMED</button>
+          <button id="placement" class="active wide-control" aria-pressed="true">PLACEMENT ARMED</button>
           <div><h3>DEPLOYED INSTANCES</h3><div id="instances" class="dense-list"></div></div>
         </aside>
-        <section class="viewport-wrap"><div id="viewport" class="viewport" role="region" tabindex="0" aria-label="Interactive planetary viewport. Arrow keys move the selected cell; Enter activates the selected cell." aria-describedby="targeting"></div><div id="targeting" class="targeting" aria-live="polite">TARGETING READY</div><div class="layerlegend" id="layerlegend" aria-live="polite"></div><div class="layerbar" id="layerbar"></div></section>
-        <aside class="panel inspector" aria-label="Planetary autopsy inspector"><h2>PLANETARY AUTOPSY</h2><div id="inspector"></div><h3>MATERIAL LEDGER</h3><div id="ledger" class="metric-grid"></div><h3>COMPARE A / B</h3><div id="compare"></div></aside>
-        <footer class="timeline"><div class="timeline-controls"><button id="play">PLAY</button><label>SPEED <select id="speed"><option>.25</option><option selected>1</option><option>4</option><option>16</option><option>64</option></select></label><button id="fork">FORK B</button><button id="switchA">BRANCH A</button><button id="switchB" disabled>BRANCH B</button><button id="camera">RESET VIEW</button></div><label class="scrub">EXPERIMENT TIMELINE <input id="timeline" type="range" min="0" max="0" value="0"><output id="tickout">TICK 0</output></label><div id="events" class="events"></div></footer>
+
+        <section class="viewport-wrap" aria-label="Planet visualization">
+          <div id="viewport" class="viewport" role="region" tabindex="0" aria-label="Interactive planetary viewport. Arrow keys move the selected cell; Enter or Space activates the selected cell." aria-describedby="targeting"></div>
+          <div id="targeting" class="targeting" aria-live="polite">PLACEMENT · FAULT-TONGUE · TARGETING READY</div>
+          <section id="quickstart" class="quickstart" aria-label="First run guide">
+            <div><p class="section-kicker">FIRST RUN</p><strong>Make one cause visible.</strong></div>
+            <ol><li>Choose a Drakken process.</li><li>Click the planet to deploy it.</li><li>Press PLAY, then rewind or fork B.</li></ol>
+            <button id="quickstartDismiss" type="button">DISMISS</button>
+          </section>
+          <div class="layerlegend" id="layerlegend" aria-live="polite"></div>
+          <div class="layerbar" id="layerbar" aria-label="Planet inspection layers"></div>
+        </section>
+
+        <aside class="panel inspector" aria-label="Planetary autopsy inspector">
+          <div class="panel-heading"><div><p class="section-kicker">02 · INSPECT</p><h2>PLANETARY AUTOPSY</h2></div></div>
+          <div id="inspector"></div>
+          <h3>MATERIAL LEDGER</h3><div id="ledger" class="metric-grid"></div>
+          <h3>COMPARE A / B</h3><div id="compare"></div>
+        </aside>
+
+        <footer class="timeline">
+          <div class="timeline-controls">
+            <button id="play" class="primary-control">PLAY</button>
+            <label>SPEED <select id="speed"><option>.25</option><option selected>1</option><option>4</option><option>16</option><option>64</option></select></label>
+            <button id="fork">FORK B @ CURRENT TICK</button>
+            <button id="switchA" class="branch-button active-branch" aria-pressed="true">VIEW A</button>
+            <button id="switchB" class="branch-button" aria-pressed="false" disabled>VIEW B</button>
+            <button id="camera">RESET VIEW</button>
+          </div>
+          <label class="scrub">EXPERIMENT TIMELINE <input id="timeline" type="range" min="0" max="0" value="0"><output id="tickout">TICK 0</output></label>
+          <div id="events" class="events" aria-label="Recent causal events"></div>
+        </footer>
       </main>`;
-    const layers: LayerId[]=['normal','crust','hydrology','atmosphere','biosphere','feedstock','drakken','provenance','comparison'];
-    this.must('layerbar').innerHTML = layers.map((l,i)=>`<button data-layer="${l}" class="${i===0?'active':''}" aria-pressed="${i===0}" ${l==='comparison'?'disabled':''}>${l.toUpperCase()}</button>`).join('');
+
+    this.must('layerbar').innerHTML = LAYERS.map((layer, index) => `
+      <button data-layer="${layer}" class="${index === 0 ? 'active' : ''}" aria-pressed="${index === 0}" ${layer === 'comparison' ? 'disabled' : ''}>${layer.toUpperCase()}</button>`).join('');
     this.must('layerlegend').textContent = LAYER_LEGENDS.normal;
   }
 
   private bind(): void {
-    this.must('regenerate').addEventListener('click',()=>this.reset());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-process]').forEach(b=>b.addEventListener('click',()=>{ this.selectedProcess=b.dataset.process as ProcessId; this.root.querySelectorAll('[data-process]').forEach(x=>{x.classList.remove('selected');x.setAttribute('aria-pressed','false');}); b.classList.add('selected');b.setAttribute('aria-pressed','true'); const def=DRAKKEN_PROCESS_REGISTRY[this.selectedProcess];this.must<HTMLInputElement>('intensity').value=String(def.defaultIntensity);this.must<HTMLInputElement>('radius').value=String(def.defaultRadius);this.updateOutputs(); }));
-    for (const id of ['intensity','radius']) this.must(id).addEventListener('input',()=>this.updateOutputs());
-    this.must('placement').addEventListener('click',()=>{this.placement=!this.placement;this.must('placement').classList.toggle('active',this.placement);this.must('placement').setAttribute('aria-pressed',String(this.placement));this.must('placement').textContent=this.placement?'PLACEMENT ARMED':'INSPECTION MODE';});
-    this.must('play').addEventListener('click',()=>{this.playing=!this.playing;this.must('play').textContent=this.playing?'PAUSE':'PLAY';});
-    this.must<HTMLSelectElement>('speed').addEventListener('change',()=>this.speed=Number(this.must<HTMLSelectElement>('speed').value));
-    this.must<HTMLInputElement>('timeline').addEventListener('change',()=>{this.playing=false;this.must('play').textContent='PLAY';this.engine.restore(Number(this.must<HTMLInputElement>('timeline').value));this.renderer.markDirty();this.refresh();});
-    this.must('fork').addEventListener('click',()=>{ if(!this.engine.branches.has('B')) this.engine.fork('B'); this.renderer.markDirty(); this.refresh();});
-    this.must('switchA').addEventListener('click',()=>this.switchBranch('A'));
-    this.must('switchB').addEventListener('click',()=>{if(this.engine.branches.has('B'))this.switchBranch('B');});
-    this.must('camera').addEventListener('click',()=>this.renderer.resetCamera());
-    this.must('viewport').addEventListener('keydown',this.onViewportKeydown);
-    this.root.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach(b=>b.addEventListener('click',()=>{this.root.querySelectorAll('[data-layer]').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false');});b.classList.add('active');b.setAttribute('aria-pressed','true');this.currentLayer=b.dataset.layer as LayerId;this.renderer.setLayer(this.currentLayer);this.must('layerlegend').textContent=LAYER_LEGENDS[this.currentLayer];}));
+    this.must('regenerate').addEventListener('click', () => this.reset());
+    this.must('quickstartDismiss').addEventListener('click', () => this.hideQuickStart());
+
+    this.root.querySelectorAll<HTMLButtonElement>('[data-process]').forEach(button => button.addEventListener('click', () => {
+      this.selectedProcess = button.dataset.process as ProcessId;
+      this.root.querySelectorAll('[data-process]').forEach(item => { item.classList.remove('selected'); item.setAttribute('aria-pressed', 'false'); });
+      button.classList.add('selected');
+      button.setAttribute('aria-pressed', 'true');
+      const definition = DRAKKEN_PROCESS_REGISTRY[this.selectedProcess];
+      this.must<HTMLInputElement>('intensity').value = String(definition.defaultIntensity);
+      this.must<HTMLInputElement>('radius').value = String(definition.defaultRadius);
+      this.updateOutputs();
+      this.updateTargetingForSelectedCell();
+    }));
+
+    for (const id of ['intensity', 'radius']) this.must(id).addEventListener('input', () => this.updateOutputs());
+
+    this.must('placement').addEventListener('click', () => {
+      this.placement = !this.placement;
+      const button = this.must('placement');
+      button.classList.toggle('active', this.placement);
+      button.setAttribute('aria-pressed', String(this.placement));
+      button.textContent = this.placement ? 'PLACEMENT ARMED' : 'INSPECTION MODE';
+      this.must('modechip').textContent = this.placement ? 'PLACEMENT' : 'INSPECTION';
+      this.updateTargetingForSelectedCell();
+    });
+
+    this.must('play').addEventListener('click', () => {
+      this.playing = !this.playing;
+      this.must('play').textContent = this.playing ? 'PAUSE' : 'PLAY';
+    });
+    this.must<HTMLSelectElement>('speed').addEventListener('change', () => { this.speed = Number(this.must<HTMLSelectElement>('speed').value); });
+    this.must<HTMLInputElement>('timeline').addEventListener('change', () => {
+      this.playing = false;
+      this.must('play').textContent = 'PLAY';
+      this.engine.restore(Number(this.must<HTMLInputElement>('timeline').value));
+      this.invalidateUiCaches();
+      this.renderer.markDirty();
+      this.refresh(true);
+    });
+    this.must('fork').addEventListener('click', () => {
+      if (!this.engine.branches.has('B')) this.engine.fork('B');
+      this.invalidateUiCaches();
+      this.renderer.markDirty();
+      this.refresh(true);
+    });
+    this.must('switchA').addEventListener('click', () => this.switchBranch('A'));
+    this.must('switchB').addEventListener('click', () => { if (this.engine.branches.has('B')) this.switchBranch('B'); });
+    this.must('camera').addEventListener('click', () => this.renderer.resetCamera());
+    this.must('viewport').addEventListener('keydown', this.onViewportKeydown);
+
+    this.root.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach(button => button.addEventListener('click', () => {
+      this.root.querySelectorAll('[data-layer]').forEach(item => { item.classList.remove('active'); item.setAttribute('aria-pressed', 'false'); });
+      button.classList.add('active');
+      button.setAttribute('aria-pressed', 'true');
+      this.currentLayer = button.dataset.layer as LayerId;
+      this.renderer.setLayer(this.currentLayer);
+      this.must('layerlegend').textContent = LAYER_LEGENDS[this.currentLayer];
+    }));
   }
 
-  private loop = (now:number): void => {
-    const dt=Math.min(0.1,(now-this.last)/1000);this.last=now;
-    if(this.playing){this.accumulator=Math.min(MAX_CATCH_UP_STEPS,this.accumulator+dt*this.speed*BASE_TICKS_PER_SECOND);let steps=0;const simStart=performance.now();while(this.accumulator>=1&&steps<MAX_CATCH_UP_STEPS){this.engine.step();this.accumulator-=1;steps++;}if(steps){this.simStepMs=(performance.now()-simStart)/steps;this.renderer.markDirty();this.refreshLight();}}
-    this.renderer.render();this.telemetryTimer+=dt;if(this.telemetryTimer>.25){this.telemetryTimer=0;this.refresh();}
-    this.frameCounter++;if(now-this.fpsClock>=1000){this.fps=this.frameCounter*1000/(now-this.fpsClock);this.frameCounter=0;this.fpsClock=now;}
-    this.frameId=requestAnimationFrame(this.loop);
+  private loop = (now: number): void => {
+    const dt = Math.min(0.1, (now - this.last) / 1000);
+    this.last = now;
+    if (this.playing) {
+      this.accumulator = Math.min(MAX_CATCH_UP_STEPS, this.accumulator + dt * this.speed * BASE_TICKS_PER_SECOND);
+      let steps = 0;
+      const simStart = performance.now();
+      while (this.accumulator >= 1 && steps < MAX_CATCH_UP_STEPS) {
+        this.engine.step();
+        this.accumulator -= 1;
+        steps++;
+      }
+      if (steps) {
+        this.simStepMs = (performance.now() - simStart) / steps;
+        this.renderer.markDirty();
+        this.refreshLight();
+      }
+    }
+    this.renderer.render();
+    this.telemetryTimer += dt;
+    if (this.telemetryTimer > 0.25) { this.telemetryTimer = 0; this.refresh(); }
+    this.frameCounter++;
+    if (now - this.fpsClock >= 1000) {
+      this.fps = this.frameCounter * 1000 / (now - this.fpsClock);
+      this.frameCounter = 0;
+      this.fpsClock = now;
+    }
+    this.frameId = requestAnimationFrame(this.loop);
   };
 
   private reset(): void {
-    const seedInput=this.must<HTMLInputElement>('seed');
-    const seed=parsePlanetSeed(seedInput.value);seedInput.value=String(seed);
-    this.playing=false;this.accumulator=0;this.last=performance.now();this.must('play').textContent='PLAY';
-    const timeline=this.must<HTMLInputElement>('timeline');timeline.min='0';timeline.max='0';timeline.value='0';
-    this.engine=new SimulationEngine(seed);this.renderer.dispose();this.renderer=new LaboratoryRenderer(this.must('viewport'),this.engine);
+    const seedInput = this.must<HTMLInputElement>('seed');
+    const seed = parsePlanetSeed(seedInput.value);
+    seedInput.value = String(seed);
+    this.playing = false;
+    this.accumulator = 0;
+    this.last = performance.now();
+    this.must('play').textContent = 'PLAY';
+    const timeline = this.must<HTMLInputElement>('timeline');
+    timeline.min = '0'; timeline.max = '0'; timeline.value = '0';
+    this.engine = new SimulationEngine(seed);
+    this.renderer.dispose();
+    this.renderer = new LaboratoryRenderer(this.must('viewport'), this.engine);
     this.configureRenderer();
-    this.comparisonCacheKey='';this.comparisonDelta=null;this.currentLayer='normal';
-    this.root.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach(button=>{const active=button.dataset.layer==='normal';button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
-    this.must('layerlegend').textContent=LAYER_LEGENDS.normal;
+    this.currentLayer = 'normal';
+    this.root.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach(button => {
+      const active = button.dataset.layer === 'normal';
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    this.must('layerlegend').textContent = LAYER_LEGENDS.normal;
+    this.invalidateUiCaches();
     this.renderer.setSelected(this.selectedCell);
-    this.refresh();
+    this.refresh(true);
   }
+
   private configureRenderer(): void {
-    this.renderer.onCellPick=(i,lat,lon)=>this.activateCell(i,lat,lon);
-    this.renderer.onCellHover=(i,lat,lon)=>{this.must('targeting').textContent=`${lat.toFixed(1)}° / ${lon.toFixed(1)}° · CELL ${i}`;};
+    this.renderer.onCellPick = (index, lat, lon) => this.activateCell(index, lat, lon);
+    this.renderer.onCellHover = (index, lat, lon) => { this.must('targeting').textContent = this.targetingText(index, lat, lon); };
   }
-  private activateCell(i:number,lat:number,lon:number):void{
-    if(this.placement){if(!this.engine.canMutateAt()){this.must('targeting').textContent=`HISTORY LOCKED · ${this.engine.state.branchId} EDITS BEGIN TICK ${this.engine.editableFromTick()}`;return;}this.engine.deploy(this.selectedProcess,lat,lon,this.num('radius'),this.num('intensity'));this.renderer.markDirty();this.refresh();}
-    else this.selectCell(i);
+
+  private activateCell(index: number, lat: number, lon: number): void {
+    if (!this.placement) { this.selectCell(index); return; }
+    if (!this.engine.canMutateAt()) {
+      this.must('targeting').textContent = `HISTORY LOCKED · ${this.engine.state.branchId} EDITS BEGIN TICK ${this.engine.editableFromTick()}`;
+      return;
+    }
+    this.engine.deploy(this.selectedProcess, lat, lon, this.num('radius'), this.num('intensity'));
+    this.hideQuickStart();
+    this.invalidateUiCaches();
+    this.must('targeting').textContent = `${display(this.selectedProcess).toUpperCase()} DEPLOYED · TICK ${this.engine.state.tick} · PRESS PLAY`;
+    this.refresh(true);
   }
-  private onViewportKeydown=(event:KeyboardEvent):void=>{
-    if(isGridNavigationKey(event.key)){event.preventDefault();this.selectCell(moveGridSelection(this.selectedCell,event.key));return;}
-    if(event.key==='Enter'||event.key===' '){event.preventDefault();const {lat,lon}=cellToLatLon(this.selectedCell);this.activateCell(this.selectedCell,lat,lon);}
+
+  private onViewportKeydown = (event: KeyboardEvent): void => {
+    if (isGridNavigationKey(event.key)) {
+      event.preventDefault();
+      this.selectCell(moveGridSelection(this.selectedCell, event.key));
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const { lat, lon } = cellToLatLon(this.selectedCell);
+      this.activateCell(this.selectedCell, lat, lon);
+    }
   };
-  private switchBranch(id:string): void {this.engine.switchBranch(id);this.comparisonCacheKey='';this.comparisonDelta=null;this.renderer.markDirty();this.refresh();}
-  private selectCell(i:number): void {this.selectedCell=i;const {lat,lon}=cellToLatLon(i);this.must('targeting').textContent=`${lat.toFixed(1)}° / ${lon.toFixed(1)}° · CELL ${i}`;this.renderer.setSelected(i);this.refresh();}
-  private updateOutputs(): void {this.must('intensityOut').textContent=this.num('intensity').toFixed(2);this.must('radiusOut').textContent=`${this.num('radius').toFixed(0)}°`;}
-  private refreshLight():void{const t=this.must<HTMLInputElement>('timeline');t.max=String(Math.max(Number(t.max),this.engine.state.tick));t.value=String(this.engine.state.tick);this.must('tickout').textContent=`TICK ${this.engine.state.tick}`;}
 
-  private refresh(): void {
-    this.refreshLight(); const m=this.engine.metrics(); const s=this.engine.state; const cell=this.engine.selectedCell(this.selectedCell);
-    const hasBranchB=this.engine.branches.has('B');
-    this.must<HTMLButtonElement>('fork').disabled=hasBranchB;
-    this.must<HTMLButtonElement>('switchB').disabled=!hasBranchB;
-    const comparisonButton=this.root.querySelector<HTMLButtonElement>('[data-layer="comparison"]');if(comparisonButton)comparisonButton.disabled=!hasBranchB;
-    this.must('statusline').textContent=`SEED ${s.seed} · TICK ${s.tick} · TIME ${s.simulationTime.toFixed(0)} · BRANCH ${s.branchId} · HASH ${this.engine.hash()} · FPS ${this.fps.toFixed(0)} · STEP ${this.simStepMs.toFixed(2)}ms · ACTIVE ${[...this.engine.processes.values()].filter(p=>p.active).length}`;
-    const coordinates=cellToLatLon(this.selectedCell);
-    this.must('inspector').innerHTML=`<div class="metric-grid"><span>COORDINATES<b>${coordinates.lat.toFixed(1)}° / ${coordinates.lon.toFixed(1)}°</b></span>${Object.entries(cell).map(([k,v])=>`<span>${label(k)}<b>${typeof v==='number'?fmt(v):v}</b></span>`).join('')}</div>`;
-    const g=s.gorevault,o=s.orbital,ledger=this.engine.ledger();this.must('ledger').innerHTML=[['WATER MASS',m.waterMass],['WATER DRIFT',m.waterDrift],['CONVERTIBLE REMAINING',m.convertibleRemaining],['ENV RESIDUE',ledger.environmentalResidueMass],['HARVESTED',g.totalHarvested],['PIPELINE ACCOUNTED',ledger.pipelineAccounted],['PIPELINE ERROR',ledger.pipelineError],['SYSTEM ERROR',ledger.systemError],['REFINED FEEDSTOCK',g.refinedFeedstock],['RISING MATERIAL',o.risingMaterial],['ORBITAL LOOSE',o.orbitalLooseMaterial],['SHAPED BAND',o.shapedBandMaterial],['BAND COVERAGE',o.bandCoverage],['BAND INTEGRITY',o.bandIntegrity]].map(([k,v])=>`<span>${k}<b>${fmt(Number(v))}</b></span>`).join('');
-    const historyEditable=this.engine.canMutateAt();
-    this.must('instances').innerHTML=[...this.engine.processes.values()].map(p=>`<div><b>${display(p.processId)}</b><span>${p.id} · ${processStatus(p.processId,p.active,g.refinedFeedstock,o.queuedForLift+o.risingMaterial+o.orbitalLooseMaterial)}</span><button data-toggle="${p.id}" ${historyEditable?'':'disabled'}>${p.active?'DEACTIVATE':'ACTIVATE'}</button></div>`).join('')||'<p>NO ACTIVE PROCESS INSTANCES</p>';
-    this.root.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach(b=>b.addEventListener('click',()=>{const p=this.engine.processes.get(b.dataset.toggle!);if(p){this.engine.setProcessActive(p.id,!p.active);this.refresh();}}));
-    const ev=this.engine.timelineEvents(s.branchId,s.tick).slice(-7);this.must('events').innerHTML=ev.map(e=>`<span><b>${e.tick}</b>${e.type}</span>`).join('')||'<span>NO EVENTS</span>';
-    if(this.engine.branches.has('B')){const tick=s.tick;const other=s.branchId==='A'?'B':'A';const key=`${s.branchId}:${other}:${tick}`;if(key!==this.comparisonCacheKey||!this.comparisonDelta){const c=this.engine.compare('A','B',tick);this.comparisonDelta=c.delta;this.renderer.setComparisonState(this.engine.captureState(other,tick));this.comparisonCacheKey=key;}const delta=this.comparisonDelta;this.must('compare').innerHTML=`<p class="compare-note">A/B DELTA layer: crimson = active branch more transformed; azure = comparison branch more transformed.</p><div class="metric-grid">${(['oceanCoverage','biosphereRemaining','averageCrustIntegrity','populationRemaining','refinedFeedstock','orbitalMaterial','bandCoverage'] as const).map(k=>`<span>${label(k)}<b>${fmt(delta[k])}</b></span>`).join('')}</div>`;}else{this.must('compare').innerHTML='<p>Fork Branch B to compare deterministic futures.</p>';this.renderer.setComparisonState(null);this.comparisonCacheKey='';this.comparisonDelta=null;}
+  private switchBranch(id: string): void {
+    this.engine.switchBranch(id);
+    this.invalidateUiCaches();
+    this.renderer.markDirty();
+    this.refresh(true);
   }
 
-  private num(id:string):number{return Number(this.must<HTMLInputElement>(id).value);}
-  private must<T extends HTMLElement=HTMLElement>(id:string):T{const el=this.root.querySelector<T>(`#${id}`);if(!el)throw new Error(`Missing #${id}`);return el;}
-  dispose():void{cancelAnimationFrame(this.frameId);this.must('viewport').removeEventListener('keydown',this.onViewportKeydown);this.renderer.dispose();}
+  private selectCell(index: number): void {
+    this.selectedCell = index;
+    this.renderer.setSelected(index);
+    this.updateTargetingForSelectedCell();
+    this.refreshInspector(true);
+  }
+
+  private updateTargetingForSelectedCell(): void {
+    const { lat, lon } = cellToLatLon(this.selectedCell);
+    this.must('targeting').textContent = this.targetingText(this.selectedCell, lat, lon);
+  }
+
+  private targetingText(index: number, lat: number, lon: number): string {
+    const mode = this.placement ? `PLACEMENT · ${display(this.selectedProcess).toUpperCase()}` : 'INSPECT';
+    return `${mode} · ${lat.toFixed(1)}° / ${lon.toFixed(1)}° · CELL ${index}`;
+  }
+
+  private updateOutputs(): void {
+    this.must('intensityOut').textContent = this.num('intensity').toFixed(2);
+    this.must('radiusOut').textContent = `${this.num('radius').toFixed(0)}°`;
+  }
+
+  private refreshLight(): void {
+    const timeline = this.must<HTMLInputElement>('timeline');
+    timeline.max = String(Math.max(Number(timeline.max), this.engine.state.tick));
+    timeline.value = String(this.engine.state.tick);
+    this.must('tickout').textContent = `TICK ${this.engine.state.tick}`;
+  }
+
+  private refresh(force = false): void {
+    this.refreshLight();
+    this.refreshBranchControls();
+    this.refreshStatusline();
+    this.refreshInspector(force);
+    this.refreshStatePanels(force);
+    this.refreshInstances(force);
+    this.refreshEvents(force);
+    this.refreshComparison();
+  }
+
+  private refreshStatusline(): void {
+    const state = this.engine.state;
+    const stateKey = `${state.branchId}:${state.tick}`;
+    if (stateKey !== this.hashCacheKey) {
+      this.hashCacheKey = stateKey;
+      this.hashCache = this.engine.hash();
+    }
+    const active = [...this.engine.processes.values()].filter(process => process.active).length;
+    this.must('statusline').innerHTML = [
+      ['SEED', state.seed], ['TICK', state.tick], ['BRANCH', state.branchId], ['HASH', this.hashCache],
+      ['FPS', this.fps.toFixed(0)], ['STEP', `${this.simStepMs.toFixed(2)}ms`], ['ACTIVE', active]
+    ].map(([key, value]) => `<span>${key}<b>${value}</b></span>`).join('');
+  }
+
+  private refreshBranchControls(): void {
+    const state = this.engine.state;
+    const hasBranchB = this.engine.branches.has('B');
+    this.must<HTMLButtonElement>('fork').disabled = hasBranchB;
+    this.must<HTMLButtonElement>('switchB').disabled = !hasBranchB;
+    for (const id of ['A', 'B'] as const) {
+      const button = this.must<HTMLButtonElement>(`switch${id}`);
+      const active = state.branchId === id;
+      button.classList.toggle('active-branch', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
+    const comparisonButton = this.root.querySelector<HTMLButtonElement>('[data-layer="comparison"]');
+    if (comparisonButton) comparisonButton.disabled = !hasBranchB;
+  }
+
+  private refreshInspector(force = false): void {
+    const state = this.engine.state;
+    const key = `${state.branchId}:${state.tick}:${this.selectedCell}`;
+    if (!force && key === this.inspectorRenderKey) return;
+    this.inspectorRenderKey = key;
+    const cell = this.engine.selectedCell(this.selectedCell);
+    const coordinates = cellToLatLon(this.selectedCell);
+    this.must('inspector').innerHTML = `<div class="metric-grid"><span>COORDINATES<b>${coordinates.lat.toFixed(1)}° / ${coordinates.lon.toFixed(1)}°</b></span>${Object.entries(cell).map(([field, value]) => `<span>${label(field)}<b>${typeof value === 'number' ? fmt(value) : value}</b></span>`).join('')}</div>`;
+  }
+
+  private refreshStatePanels(force = false): void {
+    const state = this.engine.state;
+    const key = `${state.branchId}:${state.tick}`;
+    if (!force && key === this.ledgerRenderKey) return;
+    this.ledgerRenderKey = key;
+    const metrics = this.engine.metrics();
+    const ledger = this.engine.ledger();
+    const gorevault = state.gorevault;
+    const orbital = state.orbital;
+    this.must('ledger').innerHTML = [
+      ['WATER MASS', metrics.waterMass], ['WATER DRIFT', metrics.waterDrift], ['CONVERTIBLE REMAINING', metrics.convertibleRemaining],
+      ['ENV RESIDUE', ledger.environmentalResidueMass], ['HARVESTED', gorevault.totalHarvested], ['PIPELINE ACCOUNTED', ledger.pipelineAccounted],
+      ['PIPELINE ERROR', ledger.pipelineError], ['SYSTEM ERROR', ledger.systemError], ['REFINED FEEDSTOCK', gorevault.refinedFeedstock],
+      ['RISING MATERIAL', orbital.risingMaterial], ['ORBITAL LOOSE', orbital.orbitalLooseMaterial], ['SHAPED BAND', orbital.shapedBandMaterial],
+      ['BAND COVERAGE', orbital.bandCoverage], ['BAND INTEGRITY', orbital.bandIntegrity]
+    ].map(([keyName, value]) => `<span>${keyName}<b>${fmt(Number(value))}</b></span>`).join('');
+  }
+
+  private refreshInstances(force = false): void {
+    const state = this.engine.state;
+    const gorevault = state.gorevault;
+    const orbital = state.orbital;
+    const historyEditable = this.engine.canMutateAt();
+    const processes = [...this.engine.processes.values()];
+    const signature = `${state.branchId}:${state.tick}:${historyEditable}:${processes.map(process => `${process.id}:${process.active}`).join('|')}:${gorevault.refinedFeedstock.toFixed(6)}:${(orbital.queuedForLift + orbital.risingMaterial + orbital.orbitalLooseMaterial).toFixed(6)}`;
+    if (!force && signature === this.instancesRenderKey) return;
+    this.instancesRenderKey = signature;
+    this.must('instances').innerHTML = processes.map(process => `
+      <div><b>${display(process.processId)}</b><span>${process.id} · ${processStatus(process.processId, process.active, gorevault.refinedFeedstock, orbital.queuedForLift + orbital.risingMaterial + orbital.orbitalLooseMaterial)}</span><button data-toggle="${process.id}" ${historyEditable ? '' : 'disabled'}>${process.active ? 'DEACTIVATE' : 'ACTIVATE'}</button></div>`).join('') || '<p>NO DEPLOYED PROCESS INSTANCES</p>';
+    this.root.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach(button => button.addEventListener('click', () => {
+      const process = this.engine.processes.get(button.dataset.toggle!);
+      if (!process) return;
+      this.engine.setProcessActive(process.id, !process.active);
+      this.invalidateUiCaches();
+      this.refresh(true);
+    }));
+  }
+
+  private refreshEvents(force = false): void {
+    const state = this.engine.state;
+    const visible = this.engine.timelineEvents(state.branchId, state.tick).slice(-7);
+    const key = `${state.branchId}:${state.tick}:${visible.map(event => `${event.tick}:${event.type}`).join('|')}`;
+    if (!force && key === this.eventsRenderKey) return;
+    this.eventsRenderKey = key;
+    this.must('events').innerHTML = visible.map(event => `<span><b>${event.tick}</b>${event.type}</span>`).join('') || '<span>NO EVENTS YET · DEPLOY A PROCESS TO BEGIN</span>';
+  }
+
+  private refreshComparison(): void {
+    const state = this.engine.state;
+    if (!this.engine.branches.has('B')) {
+      this.must('compare').innerHTML = '<p class="empty-copy">Fork Branch B to compare deterministic futures from one shared past.</p>';
+      this.renderer.setComparisonState(null);
+      this.comparisonCacheKey = '';
+      this.comparisonDelta = null;
+      return;
+    }
+    const tick = state.tick;
+    const other = state.branchId === 'A' ? 'B' : 'A';
+    const key = `${state.branchId}:${other}:${tick}`;
+    if (key !== this.comparisonCacheKey || !this.comparisonDelta) {
+      const comparison = this.engine.compare('A', 'B', tick);
+      this.comparisonDelta = comparison.delta;
+      this.renderer.setComparisonState(this.engine.captureState(other, tick));
+      this.comparisonCacheKey = key;
+    }
+    const delta = this.comparisonDelta;
+    this.must('compare').innerHTML = `<p class="compare-note">A/B DELTA · crimson = active branch more transformed · azure = comparison branch more transformed</p><div class="metric-grid">${(['oceanCoverage', 'biosphereRemaining', 'averageCrustIntegrity', 'populationRemaining', 'refinedFeedstock', 'orbitalMaterial', 'bandCoverage'] as const).map(metric => `<span>${label(metric)}<b>${fmt(delta[metric])}</b></span>`).join('')}</div>`;
+  }
+
+  private hideQuickStart(): void {
+    if (!this.quickStartVisible) return;
+    this.quickStartVisible = false;
+    this.must('quickstart').hidden = true;
+  }
+
+  private invalidateUiCaches(): void {
+    this.comparisonCacheKey = '';
+    this.comparisonDelta = null;
+    this.hashCacheKey = '';
+    this.ledgerRenderKey = '';
+    this.inspectorRenderKey = '';
+    this.instancesRenderKey = '';
+    this.eventsRenderKey = '';
+  }
+
+  private num(id: string): number { return Number(this.must<HTMLInputElement>(id).value); }
+  private must<T extends HTMLElement = HTMLElement>(id: string): T {
+    const element = this.root.querySelector<T>(`#${id}`);
+    if (!element) throw new Error(`Missing #${id}`);
+    return element;
+  }
+
+  dispose(): void {
+    cancelAnimationFrame(this.frameId);
+    this.must('viewport').removeEventListener('keydown', this.onViewportKeydown);
+    this.renderer.dispose();
+  }
 }
-const LAYER_LEGENDS: Record<LayerId,string> = {normal:'NORMAL · terrain / water / vegetation / transformation',crust:'CRUST · integrity / stress / fracture',hydrology:'HYDROLOGY · surface water mass',atmosphere:'ATMOSPHERE · humidity / aerosols',biosphere:'BIOSPHERE · vegetation / microbes / animals',feedstock:'FEEDSTOCK · harvestable matter / processing state',drakken:'DRAKKEN · active process influence',provenance:'PROVENANCE · latest major causal source',comparison:'COMPARISON · crimson active-branch transformation / azure comparison-branch transformation'};
-function display(id:ProcessId):string{return DRAKKEN_PROCESS_REGISTRY[id].displayName;}
-function fmt(v:number):string{return Math.abs(v)>=100?v.toFixed(1):v.toFixed(4);}
-function label(v:string):string{return v.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()).toUpperCase();}
+
+const LAYER_LEGENDS: Record<LayerId, string> = {
+  normal: 'NORMAL · terrain / water / vegetation / transformation',
+  crust: 'CRUST · integrity / stress / fracture',
+  hydrology: 'HYDROLOGY · surface water mass',
+  atmosphere: 'ATMOSPHERE · humidity / aerosols',
+  biosphere: 'BIOSPHERE · vegetation / microbes / animals',
+  feedstock: 'FEEDSTOCK · harvestable matter / processing state',
+  drakken: 'DRAKKEN · active process influence',
+  provenance: 'PROVENANCE · latest major causal source',
+  comparison: 'COMPARISON · crimson active-branch transformation / azure comparison-branch transformation'
+};
+
+function display(id: ProcessId): string { return DRAKKEN_PROCESS_REGISTRY[id].displayName; }
+function fmt(value: number): string { return Math.abs(value) >= 100 ? value.toFixed(1) : value.toFixed(4); }
+function label(value: string): string { return value.replace(/([A-Z])/g, ' $1').replace(/^./, char => char.toUpperCase()).toUpperCase(); }
