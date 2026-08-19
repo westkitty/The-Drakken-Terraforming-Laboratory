@@ -43,23 +43,44 @@ test('rapid controls, resize storms, branch switching, scrubbing, camera input, 
     expect((await diagnostics(page)).tick).toBe(0);
   }
 
-  const contextResult = await page.locator('#viewport canvas').evaluate(canvasNode => {
+  const contextResult = await page.locator('#viewport canvas').evaluate(async canvasNode => {
     const canvasElement = canvasNode as HTMLCanvasElement;
     const gl = canvasElement.getContext('webgl2') || canvasElement.getContext('webgl');
     const extension = gl?.getExtension('WEBGL_lose_context');
-    if (!extension) return false;
-    extension.loseContext();
-    return true;
+    const viewport = canvasElement.parentElement;
+    if (!gl || !extension || !viewport) return { supported: false, lostStateVisible: false, restored: false, restoredStateCleared: false };
+
+    return await new Promise<{ supported: boolean; lostStateVisible: boolean; restored: boolean; restoredStateCleared: boolean }>((resolve, reject) => {
+      let lostStateVisible = false;
+      const timeout = window.setTimeout(() => reject(new Error('Timed out waiting for webglcontextrestored')), 8_000);
+
+      canvasElement.addEventListener('webglcontextlost', () => {
+        lostStateVisible = viewport.getAttribute('data-render-state') === 'lost';
+        window.setTimeout(() => extension.restoreContext(), 0);
+      }, { once: true });
+
+      canvasElement.addEventListener('webglcontextrestored', () => {
+        window.clearTimeout(timeout);
+        resolve({
+          supported: true,
+          lostStateVisible,
+          restored: !gl.isContextLost(),
+          restoredStateCleared: viewport.getAttribute('data-render-state') !== 'lost'
+        });
+      }, { once: true });
+
+      extension.loseContext();
+    });
   });
-  expect(contextResult).toBe(true);
-  await expect(page.locator('#viewport')).toHaveAttribute('data-render-state', 'lost');
-  expect((await diagnostics(page)).renderer.contextLost).toBe(true);
-  await page.locator('#viewport canvas').evaluate(canvasNode => {
-    const canvasElement = canvasNode as HTMLCanvasElement;
-    const gl = canvasElement.getContext('webgl2') || canvasElement.getContext('webgl');
-    gl?.getExtension('WEBGL_lose_context')?.restoreContext();
-  });
+
+  expect(contextResult.supported).toBe(true);
+  expect(contextResult.lostStateVisible).toBe(true);
+  expect(contextResult.restored).toBe(true);
+  expect(contextResult.restoredStateCleared).toBe(true);
   await expect(page.locator('#viewport')).not.toHaveAttribute('data-render-state', 'lost');
-  expect((await diagnostics(page)).renderer.contextLost).toBe(false);
+  await page.waitForTimeout(100);
+  const restoredDiagnostics = await diagnostics(page);
+  expect(restoredDiagnostics.renderer.contextLost).toBe(false);
+  expect(restoredDiagnostics.renderer.render.calls).toBeGreaterThan(0);
   expect(errors.filter(error => !/context (lost|restored)/i.test(error))).toEqual([]);
 });
