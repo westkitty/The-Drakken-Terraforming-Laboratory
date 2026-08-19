@@ -125,7 +125,7 @@ The final source gate is intended to fail on:
 
 - authoritative `Math.random()` use;
 - runtime `fetch`, `XMLHttpRequest`, `WebSocket`, or HTTP(S) references in `src/`;
-- forbidden literal Blood Ring halo wording in source/current docs;
+- forbidden literal ring-description terminology in source/current docs;
 - stale `TODO`, `FIXME`, or `HACK` implementation markers;
 - Git whitespace errors.
 
