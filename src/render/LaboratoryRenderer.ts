@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GRID_HEIGHT, GRID_WIDTH, type LayerId } from '../simulation/types';
+import { uvToGridCell } from './gridUv';
 import type { PlanetState } from '../simulation/PlanetState';
 import type { SimulationEngine } from '../simulation/SimulationEngine';
 
@@ -85,7 +86,7 @@ export class LaboratoryRenderer {
     const uv = this.geometry.attributes.uv as THREE.BufferAttribute;
     for (let v = 0; v < pos.count; v++) {
       const u = uv.getX(v); const vv = uv.getY(v);
-      const x = Math.min(GRID_WIDTH - 1, Math.floor(u * GRID_WIDTH)); const y = Math.min(GRID_HEIGHT - 1, Math.floor(vv * GRID_HEIGHT)); const i = y * GRID_WIDTH + x;
+      const { index: i } = uvToGridCell(u, vv);
       const elevation = this.engine.state.elevation[i]!;
       const scale = 1 + Math.max(-0.02, Math.min(0.035, elevation * 0.025));
       pos.setXYZ(v, this.basePositions[v*3]! * scale, this.basePositions[v*3+1]! * scale, this.basePositions[v*3+2]! * scale);
@@ -98,7 +99,7 @@ export class LaboratoryRenderer {
     const uv = this.geometry.attributes.uv as THREE.BufferAttribute;
     for (let v = 0; v < color.count; v++) {
       const u = uv.getX(v); const vv = uv.getY(v);
-      const x = Math.min(GRID_WIDTH - 1, Math.floor(u * GRID_WIDTH)); const y = Math.min(GRID_HEIGHT - 1, Math.floor(vv * GRID_HEIGHT)); const i = y * GRID_WIDTH + x;
+      const { index: i } = uvToGridCell(u, vv);
       const [r,g,b] = this.layer === 'comparison' && this.comparisonState ? comparisonColor(this.engine.state, this.comparisonState, i) : this.engine.layerValue(i, this.layer);
       color.setXYZ(v, r, g, b);
     }
@@ -182,8 +183,8 @@ export class LaboratoryRenderer {
     if (rect.width <= 0 || rect.height <= 0) return;
     this.pointer.set(((clientX-rect.left)/rect.width)*2-1, -((clientY-rect.top)/rect.height)*2+1);
     this.raycaster.setFromCamera(this.pointer,this.camera); const hit = this.raycaster.intersectObject(this.mesh)[0]; if (!hit?.uv) return;
-    const x = Math.min(GRID_WIDTH-1,Math.floor(hit.uv.x*GRID_WIDTH)); const y = Math.min(GRID_HEIGHT-1,Math.floor(hit.uv.y*GRID_HEIGHT)); const i=y*GRID_WIDTH+x;
-    const lat = hit.uv.y*180-90; const lon=hit.uv.x*360-180;
+    const { index: i } = uvToGridCell(hit.uv.x, hit.uv.y);
+    const lat = Math.max(-90, Math.min(90, hit.uv.y*180-90)); const lon=Math.max(-180, Math.min(180, hit.uv.x*360-180));
     if (hover) this.onCellHover?.(i,lat,lon); else this.onCellPick?.(i,lat,lon);
   }
 

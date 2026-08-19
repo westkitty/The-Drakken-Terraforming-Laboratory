@@ -26,6 +26,8 @@ export interface BrowserDiagnostics {
     memory: { geometries: number; textures: number };
     scene: { objects: number; meshes: number; uniqueGeometries: number; uniqueMaterials: number };
     controlsDampingEnabled: boolean;
+    gpuRenderer: string;
+    gpuVendor: string;
   };
 }
 
@@ -72,6 +74,10 @@ export function installBrowserDiagnostics(app: LaboratoryApp): () => void {
       else if (material instanceof THREE.Material) materials.add(material);
     });
     const processes = [...engine.processes.values()];
+    const gl = laboratoryRenderer.renderer.getContext();
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    const gpuRenderer = debugInfo ? String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)) : 'unavailable';
+    const gpuVendor = debugInfo ? String(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL)) : 'unavailable';
     return {
       seed: engine.state.seed,
       tick: engine.state.tick,
@@ -101,7 +107,9 @@ export function installBrowserDiagnostics(app: LaboratoryApp): () => void {
           textures: laboratoryRenderer.renderer.info.memory.textures
         },
         scene: { objects, meshes, uniqueGeometries: geometries.size, uniqueMaterials: materials.size },
-        controlsDampingEnabled: laboratoryRenderer.controls.enableDamping
+        controlsDampingEnabled: laboratoryRenderer.controls.enableDamping,
+        gpuRenderer,
+        gpuVendor
       }
     };
   };
