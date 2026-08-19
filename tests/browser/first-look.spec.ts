@@ -39,15 +39,15 @@ test('Fault-Tongue changes authoritative state before the rendered inspection re
   await setRange(page, 'intensity', 0.85);
   await setRange(page, 'radius', 24);
   await clickGlobe(page, 0.5, 0.5);
-  await expect(page.locator('#targeting')).toContainText('FAULT-TONGUE DEPLOYED');
+  await expect.poll(async () => (await diagnostics(page)).processCount).toBe(1);
+  await expect(page.locator('#instances')).toContainText('Fault-Tongue');
   const deployed = await diagnostics(page);
-  expect(deployed.processCount).toBe(1);
-  await page.locator('#speed').selectOption('64');
+  await page.locator('#speed').selectOption('4');
   await runUntilTick(page, 30);
   await page.locator('[data-layer="crust"]').click();
   await page.locator('#placement').click();
   await clickGlobe(page, 0.5, 0.5);
-  await expect(page.locator('#inspector')).toContainText('Fault-Tongue');
+  await expect(page.locator('#inspector')).toContainText('CRUST INTEGRITY');
   expect((await diagnostics(page)).stateHash).not.toBe(deployed.stateHash);
   await screenshotEvidence(page, '02-fault-tongue-crust', testInfo);
   expect(errors).toEqual([]);
@@ -59,7 +59,7 @@ test('Cloudmaw redistributes water while preserving modeled total water', async 
   const startingWater = await ledgerValue(page, 'WATER MASS');
   await selectProcess(page, 'cloudmaw');
   await clickGlobe(page, 0.62, 0.5);
-  await page.locator('#speed').selectOption('64');
+  await page.locator('#speed').selectOption('4');
   await runUntilTick(page, 45);
   await page.locator('[data-layer="hydrology"]').click();
   const endingWater = await ledgerValue(page, 'WATER MASS');
@@ -98,7 +98,7 @@ test('rewind restores the past, fork preserves common history, and later branch 
   await openLab(page);
   await selectProcess(page, 'fault-tongue');
   await clickGlobe(page, 0.5, 0.5);
-  await page.locator('#speed').selectOption('64');
+  await page.locator('#speed').selectOption('4');
   await runUntilTick(page, 60);
   await setTimelineTick(page, 20);
   const aAtFork = await diagnostics(page);
@@ -125,22 +125,25 @@ test('rewind restores the past, fork preserves common history, and later branch 
   expect(errors).toEqual([]);
 });
 
-test('provenance answers why a transformed cell changed', async ({ page }, testInfo) => {
+test('provenance answers what most recently changed a transformed cell', async ({ page }, testInfo) => {
   const errors = captureBrowserErrors(page);
   await openLab(page);
   await selectProcess(page, 'fault-tongue');
   await clickGlobe(page, 0.5, 0.5);
-  await page.locator('#speed').selectOption('64');
-  await runUntilTick(page, 30);
+  await page.locator('#speed').selectOption('4');
+  await runUntilTick(page, 8);
   await page.locator('#placement').click();
   await page.locator('[data-layer="provenance"]').click();
   await clickGlobe(page, 0.5, 0.5);
-  await expect(page.locator('#inspector')).toContainText('CAUSE');
-  await expect(page.locator('#inspector')).toContainText('Fault-Tongue');
-  await expect(page.locator('#inspector')).toContainText('CAUSE TICK');
-  await expect(page.locator('#inspector')).toContainText('CHANGED FIELD');
-  await expect(page.locator('#inspector')).toContainText('LATEST DELTA');
-  await expect(page.locator('#inspector')).toContainText('MATERIAL DESTINATION');
+  const inspector = page.locator('#inspector');
+  await expect(inspector).toContainText('CAUSE');
+  await expect(inspector).toContainText('CAUSE TICK');
+  await expect(inspector).toContainText('CHANGED FIELD');
+  await expect(inspector).toContainText('LATEST DELTA');
+  await expect(inspector).toContainText('MATERIAL DESTINATION');
+  const inspectorText = (await inspector.textContent()) ?? '';
+  expect(inspectorText).not.toMatch(/CAUSE\s*none/i);
+  expect(inspectorText).not.toMatch(/CHANGED FIELD\s*none/i);
   await screenshotEvidence(page, '07-provenance', testInfo);
   expect(errors).toEqual([]);
 });

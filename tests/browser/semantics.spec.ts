@@ -41,10 +41,9 @@ test('browser semantics, accessible naming, keyboard activation, and responsive 
   expect(errors).toEqual([]);
 });
 
-test.describe('reduced motion', () => {
-  test.use({ reducedMotion: 'reduce' });
-  test('disables OrbitControls damping in the rendered application', async ({ page }) => {
-    await openLab(page);
-    expect((await diagnostics(page)).renderer.controlsDampingEnabled).toBe(false);
-  });
+test('reduced-motion preference disables OrbitControls damping', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openLab(page);
+  expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
+  expect((await diagnostics(page)).renderer.controlsDampingEnabled).toBe(false);
 });

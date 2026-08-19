@@ -24,6 +24,8 @@ export interface BrowserDiagnostics {
     memory: { geometries: number; textures: number };
     scene: { objects: number; meshes: number; uniqueGeometries: number; uniqueMaterials: number };
     controlsDampingEnabled: boolean;
+    gpuRenderer: string;
+    gpuVendor: string;
   };
 }
 

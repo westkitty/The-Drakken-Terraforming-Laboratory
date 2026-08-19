@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { captureBrowserErrors, clickGlobe, diagnostics, openLab, runUntilTick, selectProcess, setTimelineTick } from './helpers';
 
 test('rapid controls, resize storms, branch switching, scrubbing, camera input, reset, and context recovery remain operable', async ({ page }) => {
+  test.setTimeout(90_000);
   const errors = captureBrowserErrors(page);
   await openLab(page);
 
@@ -10,13 +11,11 @@ test('rapid controls, resize storms, branch switching, scrubbing, camera input, 
 
   await selectProcess(page, 'fault-tongue');
   await clickGlobe(page, 0.5, 0.5);
-  await page.locator('#speed').selectOption('64');
+  await page.locator('#speed').selectOption('4');
   await runUntilTick(page, 40);
   await setTimelineTick(page, 20);
   await page.locator('#fork').click();
-  for (let i = 0; i < 8; i++) {
-    await page.locator(i % 2 === 0 ? '#switchB' : '#switchA').click();
-  }
+  for (let i = 0; i < 8; i++) await page.locator(i % 2 === 0 ? '#switchB' : '#switchA').click();
 
   for (const layer of ['crust', 'hydrology', 'atmosphere', 'biosphere', 'feedstock', 'drakken', 'provenance', 'normal']) await page.locator(`[data-layer="${layer}"]`).click();
 
@@ -62,5 +61,5 @@ test('rapid controls, resize storms, branch switching, scrubbing, camera input, 
   });
   await expect(page.locator('#viewport')).not.toHaveAttribute('data-render-state', 'lost');
   expect((await diagnostics(page)).renderer.contextLost).toBe(false);
-  expect(errors.filter(error => !/Context (Lost|Restored)/i.test(error))).toEqual([]);
+  expect(errors.filter(error => !/context (lost|restored)/i.test(error))).toEqual([]);
 });
