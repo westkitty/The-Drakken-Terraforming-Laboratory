@@ -26,4 +26,12 @@ describe('seeded determinism', () => {
     };
     expect(run()).toBe(run());
   });
+
+  it('distinguishes scalar state differences below Float32 resolution', () => {
+    const a = new SimulationEngine(101);
+    const b = new SimulationEngine(101);
+    a.state.gorevault.refinedFeedstock = 1;
+    b.state.gorevault.refinedFeedstock = 1 + 1e-10;
+    expect(a.hash()).not.toBe(b.hash());
+  });
 });
