@@ -1,0 +1,61 @@
+name: Final sweep runtime repair
+
+on:
+  push:
+    branches: [final-bug-sweep-20260819]
+    paths: [.github/workflows/final-sweep-runtime-repair.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: final-bug-sweep-20260819
+      - name: Preserve explicit targeting feedback against pointer hover
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/ui/LaboratoryApp.ts')
+          text = path.read_text()
+          replacements = [
+              (
+                  """  private eventsRenderKey = '';\n  private quickStartVisible = true;""",
+                  """  private eventsRenderKey = '';\n  private quickStartVisible = true;\n  private targetingOverride = false;""",
+              ),
+              (
+                  """  private configureRenderer(): void {\n    this.renderer.onCellPick = (index, lat, lon) => this.activateCell(index, lat, lon);\n    this.renderer.onCellHover = (index, lat, lon) => { this.must('targeting').textContent = this.targetingText(index, lat, lon); };\n  }""",
+                  """  private configureRenderer(): void {\n    this.renderer.onCellPick = (index, lat, lon) => this.activateCell(index, lat, lon);\n    this.renderer.onCellHover = (index, lat, lon) => {\n      if (!this.targetingOverride) this.must('targeting').textContent = this.targetingText(index, lat, lon);\n    };\n  }""",
+              ),
+              (
+                  """    if (!this.engine.canMutateAt()) {\n      this.must('targeting').textContent = `HISTORY LOCKED · ${this.engine.state.branchId} EDITS BEGIN TICK ${this.engine.editableFromTick()}`;\n      return;\n    }""",
+                  """    if (!this.engine.canMutateAt()) {\n      this.targetingOverride = true;\n      this.must('targeting').textContent = `HISTORY LOCKED · ${this.engine.state.branchId} EDITS BEGIN TICK ${this.engine.editableFromTick()}`;\n      return;\n    }""",
+              ),
+              (
+                  """    this.engine.deploy(this.selectedProcess, lat, lon, this.num('radius'), this.num('intensity'));\n    this.hideQuickStart();\n    this.invalidateUiCaches();\n    this.must('targeting').textContent = `${display(this.selectedProcess).toUpperCase()} DEPLOYED · TICK ${this.engine.state.tick} · PRESS PLAY`;""",
+                  """    this.engine.deploy(this.selectedProcess, lat, lon, this.num('radius'), this.num('intensity'));\n    this.hideQuickStart();\n    this.invalidateUiCaches();\n    this.targetingOverride = true;\n    this.must('targeting').textContent = `${display(this.selectedProcess).toUpperCase()} DEPLOYED · TICK ${this.engine.state.tick} · PRESS PLAY`;""",
+              ),
+              (
+                  """  private updateTargetingForSelectedCell(): void {\n    const { lat, lon } = cellToLatLon(this.selectedCell);\n    this.must('targeting').textContent = this.targetingText(this.selectedCell, lat, lon);\n  }""",
+                  """  private updateTargetingForSelectedCell(): void {\n    this.targetingOverride = false;\n    const { lat, lon } = cellToLatLon(this.selectedCell);\n    this.must('targeting').textContent = this.targetingText(this.selectedCell, lat, lon);\n  }""",
+              ),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected exactly one replacement, found {text.count(old)}: {old[:90]!r}')
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
+      - name: Self-clean and commit runtime repair
+        run: |
+          rm .github/workflows/final-sweep-runtime-repair.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/ui/LaboratoryApp.ts .github/workflows/final-sweep-runtime-repair.yml
+          git diff --cached --check
+          git commit -m 'Preserve explicit targeting feedback across pointer hover'
+          git push origin HEAD:final-bug-sweep-20260819
