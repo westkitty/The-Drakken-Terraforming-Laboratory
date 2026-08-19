@@ -38,6 +38,7 @@ export class LaboratoryApp {
   private instancesRenderKey = '';
   private eventsRenderKey = '';
   private quickStartVisible = true;
+  private targetingOverride = false;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -151,18 +152,21 @@ export class LaboratoryApp {
     this.must('play').addEventListener('click', () => {
       this.playing = !this.playing;
       this.must('play').textContent = this.playing ? 'PAUSE' : 'PLAY';
+      this.updateTargetingForSelectedCell();
     });
     this.must<HTMLSelectElement>('speed').addEventListener('change', () => { this.speed = Number(this.must<HTMLSelectElement>('speed').value); });
     this.must<HTMLInputElement>('timeline').addEventListener('change', () => {
       this.playing = false;
       this.must('play').textContent = 'PLAY';
       this.engine.restore(Number(this.must<HTMLInputElement>('timeline').value));
+      this.updateTargetingForSelectedCell();
       this.invalidateUiCaches();
       this.renderer.markDirty();
       this.refresh(true);
     });
     this.must('fork').addEventListener('click', () => {
       if (!this.engine.branches.has('B')) this.engine.fork('B');
+      this.updateTargetingForSelectedCell();
       this.invalidateUiCaches();
       this.renderer.markDirty();
       this.refresh(true);
@@ -235,23 +239,28 @@ export class LaboratoryApp {
     this.must('layerlegend').textContent = LAYER_LEGENDS.normal;
     this.invalidateUiCaches();
     this.renderer.setSelected(this.selectedCell);
+    this.updateTargetingForSelectedCell();
     this.refresh(true);
   }
 
   private configureRenderer(): void {
     this.renderer.onCellPick = (index, lat, lon) => this.activateCell(index, lat, lon);
-    this.renderer.onCellHover = (index, lat, lon) => { this.must('targeting').textContent = this.targetingText(index, lat, lon); };
+    this.renderer.onCellHover = (index, lat, lon) => {
+      if (!this.targetingOverride) this.must('targeting').textContent = this.targetingText(index, lat, lon);
+    };
   }
 
   private activateCell(index: number, lat: number, lon: number): void {
     if (!this.placement) { this.selectCell(index); return; }
     if (!this.engine.canMutateAt()) {
+      this.targetingOverride = true;
       this.must('targeting').textContent = `HISTORY LOCKED · ${this.engine.state.branchId} EDITS BEGIN TICK ${this.engine.editableFromTick()}`;
       return;
     }
     this.engine.deploy(this.selectedProcess, lat, lon, this.num('radius'), this.num('intensity'));
     this.hideQuickStart();
     this.invalidateUiCaches();
+    this.targetingOverride = true;
     this.must('targeting').textContent = `${display(this.selectedProcess).toUpperCase()} DEPLOYED · TICK ${this.engine.state.tick} · PRESS PLAY`;
     this.refresh(true);
   }
@@ -271,6 +280,7 @@ export class LaboratoryApp {
 
   private switchBranch(id: string): void {
     this.engine.switchBranch(id);
+    this.updateTargetingForSelectedCell();
     this.invalidateUiCaches();
     this.renderer.markDirty();
     this.refresh(true);
@@ -284,6 +294,7 @@ export class LaboratoryApp {
   }
 
   private updateTargetingForSelectedCell(): void {
+    this.targetingOverride = false;
     const { lat, lon } = cellToLatLon(this.selectedCell);
     this.must('targeting').textContent = this.targetingText(this.selectedCell, lat, lon);
   }
