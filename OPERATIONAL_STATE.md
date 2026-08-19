@@ -7,12 +7,12 @@
   "project_name": "The Drakken Terraforming Laboratory",
   "project_root": "/mnt/data/The-Drakken-Terraforming-Laboratory",
   "artifact_path": null,
-  "state_revision": 2,
-  "last_updated": "2026-08-18T20:13:41-04:00",
+  "state_revision": 3,
+  "last_updated": "2026-08-18T20:55:11-04:00",
   "current_baseline": {
-    "identity": "GitHub implementation checkpoint 7384957a748a925c03654093e4a79e09a5cfb41f on main",
+    "identity": "bug-sweep merge ef9f7adf61621369b0463e53d004dc65e01a7312 on main",
     "state": "implemented-unverified",
-    "last_verified": "2026-08-18T20:13:41-04:00"
+    "last_verified": "2026-08-18T20:55:11-04:00"
   },
   "scope_boundaries": [
     "Initial browser-based deterministic Three.js Drakken terraforming laboratory prototype"
@@ -28,14 +28,14 @@
 - **Purpose:** Deterministic planetary causality laboratory where Drakken processes transform authoritative planetary state and Three.js renders that state.
 - **Project type:** Vanilla TypeScript + Three.js browser application.
 - **Primary root:** `/mnt/data/The-Drakken-Terraforming-Laboratory`
-- **Published implementation baseline:** `7384957a748a925c03654093e4a79e09a5cfb41f` on `main`.
+- **Published implementation baseline:** `ef9f7adf61621369b0463e53d004dc65e01a7312` on `main` after merged bug-sweep PR #1.
 - **Canonical authority:** Current build contract, `docs/CANON_BOUNDARIES.md`, then applicable Starsilk/Drakken canon.
 - **Governed v1 scope:** Fault-Tongue, Cloudmaw, Gorevault, Ringthroat; deterministic planet state; environment response; conservation ledgers; provenance; snapshots/rewind; branching; comparison; state-derived Three.js rendering; DOM laboratory UI; tests/docs.
 - **Out of scope:** Remaining Drakken entries, Mother, Notebook mutation editor, combat/game progression, backend/database/cloud persistence, external runtime assets, React/R3F, WebGPU, workers, physics, audio, production deployment.
 
 ## 2. Current Baseline
 
-- **Application source:** Implemented and published on `main`.
+- **Application source:** Implemented and published on `main`; multi-pass bug-sweep repairs merged as `ef9f7adf61621369b0463e53d004dc65e01a7312`.
 - **Authoritative simulation:** Directly compiled and executed in a dependency-free validation harness.
 - **Three.js renderer and DOM UI:** Implemented and statically inspected; real browser execution unavailable in this environment.
 - **Dependency-backed build:** Unverified because npm packages cannot be acquired in the current container.
@@ -64,6 +64,8 @@
 - **INV-006:** Ringthroat cannot create orbital mass with zero refined feedstock.
 - **INV-007:** Rewind is snapshot + deterministic replay and must restore the same state hash.
 - **INV-008:** Branches are identical at the fork and diverge only from branch-specific post-fork actions.
+- **INV-013:** Once a fork exists, shared history before that fork is immutable for both parent and child; the fork tick is the first editable boundary.
+- **INV-014:** Timeline views never expose future events relative to the viewed tick, and child timelines inherit frozen pre-fork chronology.
 - **INV-009:** Blood Ring visuals derive from orbital state and remain partial until material/continuity/integrity requirements are met.
 - **INV-010:** CANON FUNCTION and LAB MODEL remain explicitly separate.
 - **INV-011:** No runtime network calls or hotlinked runtime assets.
@@ -86,6 +88,13 @@
 - **VER-013:** Static safeguards pass: no `Math.random()`, runtime network APIs/URLs, or forbidden Blood Ring halo terminology in current source/docs; `git diff --check` clean.
 - **VER-014:** Web Authorship Gate passes with one narrowly scoped allowlist for required internal Project Bible successor-handoff wording.
 - **VER-015:** Three.js static inspector reports vanilla Three.js, no R3F, no remote URLs, 0 high/medium findings; five low `scene.add()` notices are confined to the declared renderer owner with explicit disposal.
+- **VER-016:** Frozen branch inheritance, stale-future snapshot invalidation, and tick-zero replay after snapshot eviction pass direct regression fixtures (`466dc81f`, `ef331f8a`, `15bfd56c`).
+- **VER-017:** Repeated rewind/replay, nested-fork isolation, and comparison/capture restoration pass direct regression fixtures (`2200215f`, `48b151a3`, `0a03729a`).
+- **VER-018:** Shared pre-fork history immutability is enforced for both parent and child branches; exact-fork-tick mutation remains allowed.
+- **VER-019:** Timeline event inheritance, rewind visibility filtering, derived-event regeneration, and exact-tick closed-band chronology pass direct regression fixtures.
+- **VER-020:** Lawful Gorevault -> Ringthroat stress path reaches closed Blood Ring state at tick 1400 with `bandCoverage=1`, `bandIntegrity≈0.84`, and conservation errors inside `1e-3`.
+- **VER-021:** Dependency-free UI helper checks pass for keyboard grid navigation, Ringthroat STARVED status, and seed `0`/uint32 normalization. DOM wiring remains unverified in a real browser.
+- **VER-022:** Bug-sweep PR #1 merged non-destructively into `main` as `ef9f7adf61621369b0463e53d004dc65e01a7312`.
 
 ## 6. Known Not Working
 
@@ -104,7 +113,7 @@
 
 ## 8. Unknown or Evidence-Stale State
 
-- **UNK-001:** GitHub Actions runner state is not exposed by the available connector for these push commits; no CI success or failure is claimed.
+- **UNK-001:** GitHub Actions runner state remained unexposed through the available connector even after `pull_request` validation was enabled and PR #1 was synchronized; no CI success or failure is claimed.
 - **UNK-002:** Browser/device behavior outside this blocked runtime is unknown until independently exercised.
 
 ## 9. Pending Work
@@ -134,7 +143,7 @@
 | VAL-004 | Water conservation | verified | direct run, drift < `1e-3` | hydrology/environment change |
 | VAL-005 | Material conservation | verified | direct ledger/system assertions | biomass/Gorevault/Ringthroat change |
 | VAL-006 | Rewind | verified | exact hash restoration | snapshot/replay change |
-| VAL-007 | Branching/comparison math | verified | fork equality + divergence + delta | history/branch change |
+| VAL-007 | Branching/comparison math | verified | fork equality + divergence + delta + immutable shared-history fixtures | history/branch change |
 | VAL-008 | Static source safeguards | verified | grep + `git diff --check` | any source/doc change |
 | VAL-009 | Web authorship | verified | scanner PASS with scoped Bible allowlist | user-facing copy/metadata change |
 | VAL-010 | Three.js static architecture | verified | inspector: 0 high/medium | renderer architecture change |
@@ -142,6 +151,8 @@
 | VAL-012 | Vitest suite | implemented-unverified | tests exist; runner unavailable | package installation available |
 | VAL-013 | Vite production build | implemented-unverified | build script exists; dependencies unavailable | package installation available |
 | VAL-014 | Browser journeys A-G | unknown | Chromium blocked before load | browser policy/environment changes |
+| VAL-015 | Timeline chronology / event inheritance | verified | direct rewind/fork/closure-event fixtures | history/event change |
+| VAL-016 | Lawful closed-band reachability | verified | multi-instance Gorevault -> Ringthroat stress run | material/ring model change |
 
 ## 12. Current Change Scope and Impact Radius
 
@@ -149,7 +160,7 @@
 - **Protected:** deterministic causality, conservation, canon/model boundary, non-destructive Git history, no external runtime assets/networking.
 - **Mandatory checks on simulation changes:** core strict compile, deterministic smoke, conservation, rewind, branch comparison, static safeguards.
 - **Mandatory checks before COMPLETE:** pinned dependency install/typecheck/tests/build plus real browser journeys.
-- **Repair class:** Initial prototype complete at source/core-validation level; external proof remains blocked.
+- **Repair class:** Three-pass bug sweep merged; no unresolved confirmed causal-core/history defect remains, while dependency-backed/browser proof remains blocked.
 
 ## 13. Compact Revision Log
 
@@ -164,3 +175,10 @@
 - **Implemented-unverified:** pinned dependency typecheck/Vitest/Vite build, real WebGL renderer/browser journeys, performance/lifecycle runtime proof.
 - **New blockers:** npm cache/network unavailability and Chromium organization policy blocking local/file navigation.
 - **Completion state:** PARTIAL until mandatory dependency-backed and real-browser proof exists.
+### Revision 3 — 2026-08-18T20:55:11-04:00
+
+- **Baseline promoted:** merged bug-sweep commit `ef9f7adf61621369b0463e53d004dc65e01a7312` on `main`.
+- **Verified repairs:** frozen branch inheritance, stale snapshot invalidation, tick-zero replay after snapshot eviction, derived-event regeneration, timeline inheritance/filtering, exact closed-band event tick, immutable shared pre-fork history, and lawful closed-band reachability.
+- **Preserved:** determinism, Cloudmaw water conservation, Gorevault/Ringthroat material conservation, exact rewind, A/B divergence/comparison, canon/model separation, no runtime network assets, and non-destructive Git history.
+- **Still unverified:** pinned dependency typecheck/Vitest/Vite build, genuine lockfile reproducibility, real browser/WebGL journeys, and runtime performance/lifecycle proof.
+- **Completion state:** PARTIAL because those mandatory external proof surfaces remain unavailable.
