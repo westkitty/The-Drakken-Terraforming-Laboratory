@@ -2,12 +2,15 @@ import { PlanetState, totalConvertibleMass, totalModeledWater } from './PlanetSt
 import { hashSeed } from './SeededRandom';
 import { GRID_HEIGHT, GRID_WIDTH } from './types';
 
-function noise(seed: number, x: number, y: number, scale: number): number {
-  const sx = Math.floor(x / scale);
-  const sy = Math.floor(y / scale);
-  const fx = (x / scale) - sx;
-  const fy = (y / scale) - sy;
-  const sample = (ix: number, iy: number) => hashSeed(seed, ((ix % GRID_WIDTH) + GRID_WIDTH) % GRID_WIDTH, Math.max(0, Math.min(GRID_HEIGHT - 1, iy))) / 0xffffffff;
+export function planetNoise(seed: number, x: number, y: number, scale: number): number {
+  const period = Math.max(1, Math.round(GRID_WIDTH / scale));
+  const px = (x / GRID_WIDTH) * period;
+  const py = y / scale;
+  const sx = Math.floor(px);
+  const sy = Math.floor(py);
+  const fx = px - sx;
+  const fy = py - sy;
+  const sample = (ix: number, iy: number) => hashSeed(seed, ((ix % period) + period) % period, Math.max(0, Math.min(GRID_HEIGHT - 1, iy))) / 0xffffffff;
   const smooth = (t: number) => t * t * (3 - 2 * t);
   const ux = smooth(fx);
   const uy = smooth(fy);
@@ -22,16 +25,16 @@ export function generatePlanet(seed: number): PlanetState {
     const lat = (y / (GRID_HEIGHT - 1)) * Math.PI - Math.PI / 2;
     for (let x = 0; x < GRID_WIDTH; x++) {
       const i = y * GRID_WIDTH + x;
-      const continental = noise(seed, x, y, 22) * 0.7 + noise(seed ^ 0x51f2, x, y, 8) * 0.3;
-      const detail = noise(seed ^ 0xa12b, x, y, 3);
+      const continental = planetNoise(seed, x, y, 22) * 0.7 + planetNoise(seed ^ 0x51f2, x, y, 8) * 0.3;
+      const detail = planetNoise(seed ^ 0xa12b, x, y, 3);
       const elevation = (continental - 0.5) * 1.4 + (detail - 0.5) * 0.22;
       const temp = Math.max(0, Math.cos(lat)) * 0.9 - Math.max(0, elevation) * 0.28;
-      const humidity = Math.max(0.04, Math.min(1, 0.25 + noise(seed ^ 0x1234, x, y, 10) * 0.65));
+      const humidity = Math.max(0.04, Math.min(1, 0.25 + planetNoise(seed ^ 0x1234, x, y, 10) * 0.65));
       const water = Math.max(0, -elevation * 1.8 + 0.12);
       const habitability = Math.max(0, Math.min(1, (temp + 0.1) * humidity * (water < 0.35 ? 1 : Math.max(0, 1.2 - water))));
       s.elevation[i] = elevation;
-      s.crustIntegrity[i] = 0.72 + noise(seed ^ 0x9911, x, y, 12) * 0.28;
-      s.crustStress[i] = noise(seed ^ 0x3311, x, y, 16) * 0.18;
+      s.crustIntegrity[i] = 0.72 + planetNoise(seed ^ 0x9911, x, y, 12) * 0.28;
+      s.crustStress[i] = planetNoise(seed ^ 0x3311, x, y, 16) * 0.18;
       s.fractureIntensity[i] = 0;
       s.exposedMineralMass[i] = Math.max(0, elevation) * 0.12;
       s.surfaceWaterMass[i] = water;
