@@ -7,23 +7,24 @@ const MASS_FIELDS = ['surfaceWaterMass','atmosphericWaterMass','vegetationMass',
 const BOUNDED_FIELDS = ['crustIntegrity','crustStress','fractureIntensity','humidity','aerosolDensity','drakkenInfluence'] as const;
 
 function assertFiniteState(state: PlanetState): void {
-  for (const field of MASS_FIELDS) for (const value of state[field]) {
-    expect(Number.isFinite(value)).toBe(true);
-    expect(value).toBeGreaterThanOrEqual(-1e-6);
+  for (const field of MASS_FIELDS) assertArrayRange(field, state[field], -1e-6, Number.POSITIVE_INFINITY);
+  for (const field of BOUNDED_FIELDS) assertArrayRange(field, state[field], -1e-6, 1 + 1e-6);
+  assertArrayRange('elevation', state.elevation, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY);
+  assertRecordRange('gorevault', state.gorevault, -1e-6, Number.POSITIVE_INFINITY);
+  const orbital = Object.fromEntries(Object.entries(state.orbital).filter(([key]) => key !== 'closed')) as Record<string, number>;
+  assertRecordRange('orbital', orbital, -1e-6, Number.POSITIVE_INFINITY);
+}
+
+function assertArrayRange(name: string, values: ArrayLike<number>, min: number, max: number): void {
+  for (let index = 0; index < values.length; index++) {
+    const value = values[index]!;
+    if (!Number.isFinite(value) || value < min || value > max) throw new Error(`${name}[${index}] outside finite range: ${value}`);
   }
-  for (const field of BOUNDED_FIELDS) for (const value of state[field]) {
-    expect(Number.isFinite(value)).toBe(true);
-    expect(value).toBeGreaterThanOrEqual(-1e-6);
-    expect(value).toBeLessThanOrEqual(1 + 1e-6);
-  }
-  for (const value of state.elevation) expect(Number.isFinite(value)).toBe(true);
-  for (const value of Object.values(state.gorevault)) {
-    expect(Number.isFinite(value)).toBe(true);
-    expect(value).toBeGreaterThanOrEqual(-1e-6);
-  }
-  for (const [key, value] of Object.entries(state.orbital)) if (key !== 'closed') {
-    expect(Number.isFinite(value)).toBe(true);
-    expect(value).toBeGreaterThanOrEqual(-1e-6);
+}
+
+function assertRecordRange(name: string, values: Record<string, number>, min: number, max: number): void {
+  for (const [key, value] of Object.entries(values)) {
+    if (!Number.isFinite(value) || value < min || value > max) throw new Error(`${name}.${key} outside finite range: ${value}`);
   }
 }
 
