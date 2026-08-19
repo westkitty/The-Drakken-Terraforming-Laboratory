@@ -173,6 +173,27 @@ Pure dependency-free UI helpers were also compiled and executed directly:
 
 The DOM event wiring and real Three.js rendering for those UI fixes remain **implemented-unverified** because the browser policy blocker described below still prevents the application from loading in Chromium here.
 
+## Bug sweep third-pass evidence — 2026-08-18
+
+A third adversarial pass focused on chronology visibility and the common-history branch invariant. Direct dependency-free regression fixtures now pass for:
+
+- rewound timelines exposing no events beyond the viewed tick;
+- child branches inheriting the parent timeline through the fork boundary and retaining a frozen copy;
+- `ORBITAL BAND CLOSED` being recorded on the exact tick where closed state becomes true rather than the next 25-tick milestone interval;
+- immutable shared history before a branch fork: child edits before the child fork and parent edits before an existing child fork are rejected;
+- exact-fork-tick edits remain allowed and preserve equal world hashes before the fork;
+- the earlier history regressions remain green after the shared-history lock: frozen child inheritance, stale-snapshot invalidation, tick-zero replay after snapshot eviction, repeated rewind/replay, nested-fork isolation, comparison/capture state restoration, and derived-event replay.
+
+Post-fix static resweep:
+
+- TypeScript syntax transpile: **PASS** for 32 source files;
+- Three.js static inspection: **PASS** with 0 high / 0 medium findings and the same 5 accepted renderer-owner `scene.add()` notices;
+- Web Authorship Gate: **PASS** with only the existing scoped internal-Bible allowlist;
+- static randomness/network/Blood Ring terminology/TODO-marker checks: **PASS**;
+- `git diff --check`: **PASS**.
+
+The repair candidate was reviewed in pull request #1 and merged non-destructively into `main` as `ef9f7adf61621369b0463e53d004dc65e01a7312`. The default-branch workflow was separately updated to include `pull_request` validation. No workflow run became observable through the available GitHub integration before merge, so CI success is still not claimed.
+
 ## Current validation verdict
 
 **PARTIAL.** The difficult causal simulation core is directly executed and verified. The user-facing implementation and Three.js renderer are present and statically inspected, but dependency-backed build proof, lockfile proof, and real-browser proof are unavailable in the current execution environment and must not be upgraded to PASS without new evidence.
