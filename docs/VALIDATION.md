@@ -78,12 +78,12 @@ Current source checks: **PASS**.
 
 - no `Math.random()` in `src/`;
 - no `fetch(`, `XMLHttpRequest`, `WebSocket`, or external HTTP runtime references in `src/`;
-- no forbidden Blood Ring descriptive use of `halo` in application source/current docs;
+- no forbidden Blood Ring descriptive terminology in application source/current docs;
 - `git diff --check` clean.
 
 ### Web authorship
 
-The Web Authorship Gate scanner was run over the repository. Its only initial findings were the required internal Project Bible phrase `Successor AI` and two corresponding `AI` tokens. A scoped allowlist was applied only to `The_Drakken_Terraforming_Laboratory_Bible.md`, with the reason that it is required internal continuity infrastructure rather than user-facing application copy or production credit.
+The Web Authorship Gate scanner was run over the repository. Its only initial findings were required successor-handoff terminology inside the internal Project Bible. A scoped allowlist was applied only to `The_Drakken_Terraforming_Laboratory_Bible.md`, because that file is internal continuity infrastructure rather than user-facing application copy or production credit.
 
 Scoped result: **PASS** — no unresolved findings.
 
