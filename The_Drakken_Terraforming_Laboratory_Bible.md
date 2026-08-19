@@ -661,3 +661,89 @@ State After Completion:
 
 Next Step / Handoff:
 - Open the current `main` build in a normal browser and follow `docs/FIRST_LOOK.md` before changing design or architecture. Then run `docs/PERFORMANCE_BENCHMARK.md`. Promote only directly observed browser/runtime results.
+
+### Entry 11 - Real Chrome first-look and runtime validation
+Summary:
+- Completed the requested pre-look browser-validation pass and merged PR #3 to `main` as `9e43a8be856facb43953305d95efd81b3f1f0e74`.
+- Added a bounded Playwright/Chrome validation lane covering the seven first-look behaviors, screenshots, accessibility/keyboard/responsive semantics, CI performance/lifecycle smoke, pathological browser interaction sequences, and WebGL context loss/restoration.
+- Promoted Operational State to revision 5 in commit `3abd8353980c8c0aa84c2ea52aec2b0ead5031ea` and reconciled `docs/VALIDATION.md` in commit `4001e428be90f97dc85385acec56c67256eab874`.
+
+Reason / Intent:
+- Close the largest remaining pre-look blind spot by exercising the actual production browser application rather than relying on source inspection, unit tests, or static Three.js analysis.
+- Preserve strict evidence boundaries: automated Chrome behavior can verify objective interaction/runtime properties, but it cannot substitute for the user's subjective first impression or representative target-hardware performance/thermal evidence.
+
+Files Changed:
+- Browser CI/tooling: `.github/workflows/validate.yml`, `package.json`, `package-lock.json`, `playwright.config.ts`, `.gitignore`.
+- Read-only diagnostics/testability: `src/browserDiagnostics.ts`, `src/main.ts`.
+- Renderer boundary repair: `src/render/LaboratoryRenderer.ts`, `src/render/gridUv.ts`, `src/tests/gridUv.test.ts`.
+- Browser suites: `tests/browser/first-look.spec.ts`, `helpers.ts`, `performance.spec.ts`, `semantics.spec.ts`, `stress.spec.ts`.
+- Minor document/entry metadata: `index.html`, `docs/VALIDATION.md`, `OPERATIONAL_STATE.md`.
+
+Commands / Validation Paths:
+```text
+GitHub Actions run 32256868714
+npm ci
+npm audit --omit=dev --audit-level=high
+npm run typecheck
+npm test
+npm run build
+npm run test:browser
+Google Chrome 151.0.7922.108 on GitHub-hosted Ubuntu 24.04
+Playwright one-worker production-preview journey suite
+Three.js static project-health audit
+objective review of eight browser evidence screenshots
+Operational State schema validation
+```
+
+Outputs Generated:
+- Dependency-backed unit/regression suite: 13 files / 43 tests PASS.
+- Production Vite build: PASS.
+- Runtime dependency gate: 0 runtime vulnerabilities.
+- Browser suite: 10 / 10 Playwright tests PASS in about two minutes.
+- Browser artifact: `9366713842`, containing Playwright report/results, performance smoke JSON, and eight screenshots.
+- Automated browser paths cover startup/WebGL, Fault-Tongue, Cloudmaw, Ringthroat starvation, Gorevault -> Ringthroat material flow, rewind, branch common history/divergence, comparison, provenance, semantic/keyboard operation, narrow viewport, reduced motion, rapid controls, resize storms, camera movement, repeated reset, and WebGL loss/restoration.
+- Screenshot evidence: initial, Fault-Tongue crust, Cloudmaw hydrology, Ringthroat starved, Gorevault/Ringthroat chain, branch comparison, provenance, and `390 x 844` narrow viewport.
+- Objective screenshot review found no blank canvas, primary-region overlap, global narrow-viewport overflow, or mismatch between the tested state/layer and its capture.
+
+Browser / Lifecycle Evidence:
+```text
+Scenario: CI-PRELOOK-SMOKE-01
+Renderer: ANGLE / SwiftShader virtual software renderer
+DOMContentLoaded: 167.8 ms
+Load: 180.1 ms
+Frame samples: 529
+Frame p50: 33.3 ms
+Frame p95: 50.0 ms
+Frame p99: 66.6 ms
+Frames over 50 ms: 2.46%
+Latest simulation step: about 0.465 ms
+Long tasks: 9, max 165 ms
+Heap delta after 3 reset cycles: +412,796 bytes
+Renderer geometries: 3 baseline / 3 settled
+Renderer textures: 1 baseline / 1 settled
+Unique scene geometries: 3 baseline / 3 settled
+Unique scene materials: 3 baseline / 3 settled
+Frame-budget verdict: NOT_COMPARABLE to target hardware
+```
+
+Findings / Repairs:
+- Initial browser CI attempted `playwright install --with-deps chromium`; Ubuntu package-mirror retries consumed the browser job timeout. The final workflow instead uses the GitHub runner's already-installed Google Chrome and keeps CI read-only.
+- Vitest initially discovered Playwright specs. Test ownership is now explicit: Vitest runs `src/tests`; Playwright runs `tests/browser`.
+- Browser work exposed SphereGeometry seam/pole UV offsets that could map outside the authoritative lattice. `uvToGridCell()` now clamps renderer geometry/color/picking UVs into the 128 x 64 grid and has dedicated regression tests.
+- The first WebGL restoration test called `restoreContext()` too soon after observing state set during `webglcontextlost`. The final test follows the WebGL loss/restore lifecycle: it waits until the loss event has completed, restores on the next task using the same extension object, waits for `webglcontextrestored`, and then verifies the lost marker clears and rendering resumes. Renderer behavior did not require a speculative rewrite.
+
+Decisions:
+- Keep browser diagnostics opt-in under `?diagnostics=1`, read-only, and subordinate to the existing application/simulation owners.
+- Do not create another animation loop for instrumentation; frame timing wraps the existing requestAnimationFrame path only inside browser tests.
+- Treat the Chrome/SwiftShader frame-time capture as lifecycle/smoke evidence, not a target-device performance benchmark.
+- Keep human visual judgment, physical touch feel, target-GPU frame timing, sustained thermals, and long-session target-device behavior explicitly unverified until directly observed.
+- Do not continue pre-look source polishing after the green browser gate without new evidence from the user's inspection.
+
+State After Completion:
+- `main` contains the browser-validation release `9e43a8be856facb43953305d95efd81b3f1f0e74` plus current validation/state reconciliation.
+- The primary Chrome/WebGL user journey is verified end-to-end by CI rather than inferred from source.
+- No unresolved confirmed causal-core, history, build, or primary-Chrome-journey defect remains in the inspected scope.
+- Overall project state remains PARTIAL / partially verified only because automation cannot establish subjective visual quality or representative target-hardware performance/thermal behavior.
+
+Next Step / Handoff:
+- The next meaningful evidence is the user's actual first look using `docs/FIRST_LOOK.md`. Do not perform another speculative pre-look polish cycle. If the user identifies a visual/interaction issue, repair that evidence-backed issue. If performance becomes a concern, run `docs/PERFORMANCE_BENCHMARK.md` on representative target hardware.
