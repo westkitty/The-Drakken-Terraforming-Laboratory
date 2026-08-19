@@ -3,7 +3,7 @@
 <!-- operational-state:metadata
 {
   "schema_version": 1,
-  "project_id": "westkitty/The-Drakken-Terraforming-Laboratory",
+  "project_id": "drakken-terraforming-laboratory",
   "project_name": "The Drakken Terraforming Laboratory",
   "project_root": "/mnt/data/The-Drakken-Terraforming-Laboratory",
   "artifact_path": null,
@@ -23,7 +23,8 @@
 
 ## 1. Project Identity and Scope
 
-- **Project ID:** `westkitty/The-Drakken-Terraforming-Laboratory`
+- **Project ID:** `drakken-terraforming-laboratory`
+- **Repository:** `westkitty/The-Drakken-Terraforming-Laboratory`
 - **Purpose:** Deterministic planetary causality laboratory where Drakken processes transform authoritative planetary state and Three.js renders that state.
 - **Project type:** Vanilla TypeScript + Three.js browser application.
 - **Primary root:** `/mnt/data/The-Drakken-Terraforming-Laboratory`
@@ -86,7 +87,7 @@
 - **VER-014:** Web Authorship Gate passes with one narrowly scoped allowlist for required internal Project Bible successor-handoff wording.
 - **VER-015:** Three.js static inspector reports vanilla Three.js, no R3F, no remote URLs, 0 high/medium findings; five low `scene.add()` notices are confined to the declared renderer owner with explicit disposal.
 
-## 6. Known Not Working / Environment Blockers
+## 6. Known Not Working
 
 - **BRK-001:** Container DNS/outbound access cannot fetch npm/GitHub packages directly; original `git clone` and npm package acquisition are unavailable from shell networking.
 - **BRK-002:** `npm install --offline --package-lock-only` fails `ENOTCACHED` for `@types/three`; required packages are not cached.
