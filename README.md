@@ -78,7 +78,7 @@ PlanetState -> Laboratory DOM UI
 
 Simulation truth is never read back from scene transforms or materials. One DOM-owned animation loop renders the scene and consumes bounded fixed simulation steps. Procedural behavior uses explicit seeded integer hashing rather than `Math.random()`.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SIMULATION_MODEL.md`](docs/SIMULATION_MODEL.md), and [`docs/PROJECT_HEALTH.md`](docs/PROJECT_HEALTH.md).
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SIMULATION_MODEL.md`](docs/SIMULATION_MODEL.md), [`docs/PROJECT_HEALTH.md`](docs/PROJECT_HEALTH.md), and [`docs/PERFORMANCE_BENCHMARK.md`](docs/PERFORMANCE_BENCHMARK.md).
 
 ## Testing
 
