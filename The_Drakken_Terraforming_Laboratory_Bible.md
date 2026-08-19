@@ -206,3 +206,44 @@ State After Completion:
 
 Next Step / Handoff:
 - In a network-capable environment, generate `package-lock.json` with the pinned dependencies, run `npm ci`, `npm run typecheck`, `npm test`, and `npm run build`, then execute journeys A-G with the real renderer. Promote only the checks that actually pass.
+
+### Entry 4 - Operational State schema correction
+Summary:
+- Corrected Operational State schema details discovered by the deterministic validator after revision 2 was drafted.
+
+Reason / Intent:
+- Keep the project control plane machine-valid instead of merely readable.
+
+Files Changed:
+- `OPERATIONAL_STATE.md`
+- `docs/VALIDATION.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Commands Run:
+```text
+python3 /home/oai/skills/operational-state/scripts/operational_state.py validate --file OPERATIONAL_STATE.md --project-id drakken-terraforming-laboratory
+python3 /home/oai/skills/web-authorship-gate/scripts/audit_web_authorship.py ...
+git diff --check
+```
+
+Command Intent:
+- Validate continuity schema, re-run authorship checks after final evidence edits, and preserve clean Git whitespace.
+
+Outputs Generated:
+- Machine-valid Operational State revision 2.
+
+Decisions:
+- Use stable project ID `drakken-terraforming-laboratory`; keep the GitHub repository identity separately as `westkitty/The-Drakken-Terraforming-Laboratory`.
+- Preserve the required exact section heading `## 6. Known Not Working`.
+
+Bugs / Blockers:
+- Initial revision-2 draft used the repository slug as `project_id` and expanded the required section heading; the validator rejected both.
+
+Correction:
+- Supersedes only those two schema details in the earlier revision-2 draft. No application behavior changed.
+
+State After Completion:
+- Operational State validates successfully; application completion state remains PARTIAL for the previously recorded environment proof limits.
+
+Next Step / Handoff:
+- No further source changes are required in this environment; remaining work is dependency-backed and real-browser validation in a runtime that permits them.
