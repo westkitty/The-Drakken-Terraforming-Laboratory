@@ -32,6 +32,7 @@ export class PlanetState implements PlanetStateData {
   gorevault: GorevaultInventory = emptyGorevault();
   orbital: OrbitalInventory = emptyOrbital();
   totalWater = 0;
+  initialWaterMass = 0;
   initialConvertibleMass = 0;
   environmentalResidueMass = 0;
 
@@ -50,6 +51,7 @@ export class PlanetState implements PlanetStateData {
     copy.gorevault = { ...this.gorevault };
     copy.orbital = { ...this.orbital };
     copy.totalWater = this.totalWater;
+    copy.initialWaterMass = this.initialWaterMass;
     copy.initialConvertibleMass = this.initialConvertibleMass;
     copy.environmentalResidueMass = this.environmentalResidueMass;
     return copy;

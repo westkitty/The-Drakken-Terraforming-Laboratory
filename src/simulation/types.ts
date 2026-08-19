@@ -93,6 +93,7 @@ export interface PlanetStateData {
   gorevault: GorevaultInventory;
   orbital: OrbitalInventory;
   totalWater: number;
+  initialWaterMass: number;
   initialConvertibleMass: number;
   environmentalResidueMass: number;
 }

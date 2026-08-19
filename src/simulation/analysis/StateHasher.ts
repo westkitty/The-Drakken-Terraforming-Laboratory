@@ -3,7 +3,7 @@ import type { PlanetState } from '../PlanetState';
 export function hashPlanetState(state: PlanetState): string {
   let hash = 2166136261 >>> 0;
   const mix = (value: number) => { hash ^= value >>> 0; hash = Math.imul(hash, 16777619) >>> 0; };
-  mix(state.seed); mix(state.tick); mix(floatBits(state.simulationTime)); mix(floatBits(state.totalWater)); mix(floatBits(state.initialConvertibleMass)); mix(floatBits(state.environmentalResidueMass));
+  mix(state.seed); mix(state.tick); mix(floatBits(state.simulationTime)); mix(floatBits(state.totalWater)); mix(floatBits(state.initialWaterMass)); mix(floatBits(state.initialConvertibleMass)); mix(floatBits(state.environmentalResidueMass));
   const arrays = [
     state.elevation, state.crustIntegrity, state.crustStress, state.fractureIntensity, state.exposedMineralMass,
     state.surfaceWaterMass, state.atmosphericWaterMass, state.humidity, state.aerosolDensity, state.temperature,

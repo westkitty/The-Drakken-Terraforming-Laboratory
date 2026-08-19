@@ -48,6 +48,7 @@ export function generatePlanet(seed: number): PlanetState {
     }
   }
   s.totalWater = totalModeledWater(s);
+  s.initialWaterMass = s.totalWater;
   s.initialConvertibleMass = totalConvertibleMass(s);
   return s;
 }

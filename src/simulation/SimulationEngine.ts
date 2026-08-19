@@ -22,6 +22,7 @@ export interface Metrics {
   orbitalMaterial: number;
   bandCoverage: number;
   waterMass: number;
+  waterDrift: number;
   convertibleRemaining: number;
 }
 
@@ -81,6 +82,7 @@ export class SimulationEngine {
       population += this.state.populationMass[i]!;
     }
     const orbital = this.state.orbital;
+    const waterMass = totalModeledWater(this.state);
     return {
       oceanCoverage: ocean / CELL_COUNT,
       biosphereRemaining: biosphere,
@@ -89,7 +91,8 @@ export class SimulationEngine {
       refinedFeedstock: this.state.gorevault.refinedFeedstock,
       orbitalMaterial: orbital.queuedForLift + orbital.risingMaterial + orbital.orbitalLooseMaterial + orbital.shapedBandMaterial,
       bandCoverage: orbital.bandCoverage,
-      waterMass: totalModeledWater(this.state),
+      waterMass,
+      waterDrift: waterMass - this.state.initialWaterMass,
       convertibleRemaining: totalConvertibleMass(this.state)
     };
   }
@@ -249,7 +252,9 @@ export class SimulationEngine {
   }
 }
 
-function actionSort(a: ProcessAction, b: ProcessAction): number { return a.tick - b.tick || a.instanceId.localeCompare(b.instanceId); }
+function actionSort(a: ProcessAction, b: ProcessAction): number {
+  return a.tick - b.tick || a.instanceId.localeCompare(b.instanceId) || (a.kind === b.kind ? 0 : a.kind === 'deploy' ? -1 : 1);
+}
 function clamp01(value: number): number { return Math.max(0, Math.min(1, value)); }
 function provenanceFieldName(value: number): string { return ['none','crust','water','biosphere','material','orbit'][value] ?? 'unknown'; }
 function destinationName(value: number): string { return ['none','Gorevault processing','Ringthroat / orbital construction'][value] ?? 'unknown'; }

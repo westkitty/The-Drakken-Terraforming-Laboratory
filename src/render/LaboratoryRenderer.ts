@@ -31,7 +31,8 @@ export class LaboratoryRenderer {
     container.append(this.renderer.domElement);
     this.camera.position.set(0, 0.4, 3.1);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enablePan = false; this.controls.minDistance = 1.65; this.controls.maxDistance = 5.4; this.controls.enableDamping = true;
+    this.controls.enablePan = false; this.controls.minDistance = 1.65; this.controls.maxDistance = 5.4;
+    this.controls.enableDamping = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.scene.background = new THREE.Color(0x06090d);
     this.scene.add(new THREE.HemisphereLight(0xbddcff, 0x100d12, 1.1));
     const key = new THREE.DirectionalLight(0xffffff, 1.9); key.position.set(3, 2, 4); this.scene.add(key);
@@ -100,8 +101,19 @@ export class LaboratoryRenderer {
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({ color: 0x8e1730, emissive: 0x22030a, transparent: true, opacity: 0.68, roughness: 0.34, metalness: 0.18, side: THREE.DoubleSide });
     const band = new THREE.Mesh(geo, mat); band.rotation.x = 0.18; band.rotation.z = -0.11; this.ringGroup.add(band);
-    const activeRing = [...this.engine.processes.values()].find(p => p.active && p.processId === 'ringthroat');
-    if (activeRing && o.risingMaterial > 0.001) {
+    const inclusions: number[] = [];
+    for (let s = 0; s < covered; s += 5) {
+      const a = ((s + 0.41) / segments) * Math.PI * 2;
+      const r = 1.34 + 0.012 * Math.sin(s * 4.713 + this.engine.seed * 0.0007);
+      inclusions.push(Math.cos(a) * r, 0.006 * Math.sin(s * 1.17), Math.sin(a) * r);
+    }
+    if (inclusions.length) {
+      const inclusionGeo = new THREE.BufferGeometry(); inclusionGeo.setAttribute('position', new THREE.Float32BufferAttribute(inclusions, 3));
+      const inclusionMat = new THREE.PointsMaterial({ color: 0x17080d, size: 0.018, sizeAttenuation: true, transparent: true, opacity: 0.9 });
+      const points = new THREE.Points(inclusionGeo, inclusionMat); points.rotation.copy(band.rotation); this.ringGroup.add(points);
+    }
+    const activeRings = [...this.engine.processes.values()].filter(p => p.active && p.processId === 'ringthroat').slice(0, 3);
+    if (o.risingMaterial > 0.001) for (const activeRing of activeRings) {
       const lat = activeRing.lat * Math.PI/180; const lon = activeRing.lon * Math.PI/180;
       const p0 = new THREE.Vector3(Math.cos(lat)*Math.cos(lon), Math.sin(lat), Math.cos(lat)*Math.sin(lon)).multiplyScalar(1.01);
       const p1 = p0.clone().multiplyScalar(1.35); const curve = new THREE.LineCurve3(p0,p1); const tube = new THREE.TubeGeometry(curve, 8, 0.006, 5, false);
@@ -142,7 +154,7 @@ function comparisonColor(a: PlanetState, b: PlanetState, i: number): [number, nu
 
 function disposeGroup(group: THREE.Group): void {
   group.traverse(o => {
-    if (!(o instanceof THREE.Mesh)) return;
+    if (!(o instanceof THREE.Mesh) && !(o instanceof THREE.Points) && !(o instanceof THREE.Line)) return;
     o.geometry.dispose();
     if (Array.isArray(o.material)) o.material.forEach(m => m.dispose()); else o.material.dispose();
   });
