@@ -11,7 +11,7 @@ import { applyFaultTongue } from './processes/FaultTongueProcess';
 import { applyGorevault } from './processes/GorevaultProcess';
 import { applyRingthroat } from './processes/RingthroatProcess';
 import { buildKernel } from './processes/spatialKernel';
-import { CELL_COUNT, GRID_HEIGHT, GRID_WIDTH, SNAPSHOT_INTERVAL, type BranchRecord, type LayerId, type ProcessAction, type ProcessId, type ProcessInstance, type TimelineEvent } from './types';
+import { CELL_COUNT, SNAPSHOT_INTERVAL, type BranchRecord, type LayerId, type ProcessAction, type ProcessId, type ProcessInstance, type TimelineEvent } from './types';
 
 export interface Metrics {
   oceanCoverage: number;

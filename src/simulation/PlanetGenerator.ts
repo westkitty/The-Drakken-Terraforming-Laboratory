@@ -1,6 +1,6 @@
 import { PlanetState, totalConvertibleMass, totalModeledWater } from './PlanetState';
 import { hashSeed } from './SeededRandom';
-import { CELL_COUNT, GRID_HEIGHT, GRID_WIDTH } from './types';
+import { GRID_HEIGHT, GRID_WIDTH } from './types';
 
 function noise(seed: number, x: number, y: number, scale: number): number {
   const sx = Math.floor(x / scale);
