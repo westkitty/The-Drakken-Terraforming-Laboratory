@@ -6,15 +6,18 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run src/tests",
     "test:stress": "vitest run src/tests/simulationStress.test.ts src/tests/fullPipeline.test.ts",
-    "test:watch": "vitest",
-    "build": "npm run typecheck && vite build"
+    "test:watch": "vitest src/tests",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "three": "0.185.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/three": "0.185.1",
     "typescript": "7.0.2",
     "vite": "7.3.5",
