@@ -22,7 +22,7 @@ export default defineConfig({
     video: 'off'
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } }
+    { name: 'chrome', use: { ...devices['Desktop Chrome'], channel: 'chrome' } }
   ],
   webServer: {
     command: 'npm run preview -- --host 127.0.0.1 --port 4173',
