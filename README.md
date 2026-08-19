@@ -61,6 +61,7 @@ Then open the local Vite address shown in the terminal.
 - choose 0.25x, 1x, 4x, 16x, or 64x tick consumption;
 - scrub to restore an actual earlier state;
 - fork Branch B from the current restored tick;
+- after a fork, shared pre-fork history becomes inspection-only for both parent and child, preserving identical history before the fork;
 - switch between A and B at the current time.
 
 ### Comparison
