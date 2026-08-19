@@ -38,6 +38,7 @@ export class LaboratoryApp {
   private instancesRenderKey = '';
   private eventsRenderKey = '';
   private quickStartVisible = true;
+  private targetingOverride = false;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -244,18 +245,22 @@ export class LaboratoryApp {
 
   private configureRenderer(): void {
     this.renderer.onCellPick = (index, lat, lon) => this.activateCell(index, lat, lon);
-    this.renderer.onCellHover = (index, lat, lon) => { this.must('targeting').textContent = this.targetingText(index, lat, lon); };
+    this.renderer.onCellHover = (index, lat, lon) => {
+      if (!this.targetingOverride) this.must('targeting').textContent = this.targetingText(index, lat, lon);
+    };
   }
 
   private activateCell(index: number, lat: number, lon: number): void {
     if (!this.placement) { this.selectCell(index); return; }
     if (!this.engine.canMutateAt()) {
+      this.targetingOverride = true;
       this.must('targeting').textContent = `HISTORY LOCKED · ${this.engine.state.branchId} EDITS BEGIN TICK ${this.engine.editableFromTick()}`;
       return;
     }
     this.engine.deploy(this.selectedProcess, lat, lon, this.num('radius'), this.num('intensity'));
     this.hideQuickStart();
     this.invalidateUiCaches();
+    this.targetingOverride = true;
     this.must('targeting').textContent = `${display(this.selectedProcess).toUpperCase()} DEPLOYED · TICK ${this.engine.state.tick} · PRESS PLAY`;
     this.refresh(true);
   }
@@ -289,6 +294,7 @@ export class LaboratoryApp {
   }
 
   private updateTargetingForSelectedCell(): void {
+    this.targetingOverride = false;
     const { lat, lon } = cellToLatLon(this.selectedCell);
     this.must('targeting').textContent = this.targetingText(this.selectedCell, lat, lon);
   }
