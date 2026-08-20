@@ -173,4 +173,40 @@ Objective screenshot states captured to `browser-evidence/screenshots/`:
 
 Lifecycle smoke (local Metal, not a SwiftShader/target-hardware FPS claim): unique geometries 12 baseline / 12 after 3 regenerates; heap delta about +377 kB; latest simulation step about 1.34 ms.
 
-This does not replace human visual taste, physical-device thermals, or a single uninterrupted 16-test Playwright job on a quiet machine.
+This integration-QA capture is superseded by the 2026-08-20 interaction/QA correction pass below.
+
+## Planet-first interaction and QA correction — 2026-08-20
+
+Local Chrome `151.0.7922.138` on branch `planet-first-space-system` after the targeted correction pass. PLAY and other overlay controls use ordinary Playwright actionability. First-run guidance is inside RUN. `qa-01` is captured from an untouched first load (`openLab(page, false)`), with the 12-dot launcher closed and `#quickstart` not visible.
+
+Executed:
+
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 15 files / 55 tests PASS (`npx vitest run src/tests --testTimeout=20000`)
+Vite 7.3.5 production build: PASS
+  dist/index.html                  0.51 kB | gzip 0.32 kB
+  dist/assets/index-BAr3i8z_.css   8.65 kB | gzip 2.80 kB
+  dist/assets/index-CAEJZViE.js  616.76 kB | gzip 157.01 kB
+Command: npm run test:browser -- --workers=1
+Playwright Chrome: 18 passed (4.7m)
+```
+
+The single 18-test job included celestial pick/orbit/regenerate, first-look journeys, final QA screenshots, 12-dot/starfield/parallax, semantics, and stress. No `click({ force: true })` remains in `tests/browser`.
+
+Objective screenshot states recaptured to `browser-evidence/screenshots/` during that same run:
+
+- `qa-01-default-planet-view` — untouched first load: menu closed, no first-run overlay, planet dominant, starfield, visible system star
+- `qa-02-menu-open` — VIEW overlay without taking over the scene
+- `qa-03-system-view` — planet, moon, outer bodies, star, deeper starfield
+- `qa-04-moon-focused`
+- `qa-05-outer-focused`
+- `qa-06-drakken-active` — Fault-Tongue deploy on the primary planet
+- `qa-07-narrow-viewport` — 390 x 844, no global overflow, planet remains primary
+
+`01-initial.png` matches `qa-01-default-planet-view.png` at 107725 bytes.
+
+Lifecycle smoke (local Metal ANGLE, not a SwiftShader/target-hardware FPS claim): unique geometries 16 baseline / 16 after 3 regenerates; unique materials 16/16; heap delta about +418 kB; latest simulation step about 1.78 ms.
+
+This does not replace human visual taste or representative physical-device thermals.

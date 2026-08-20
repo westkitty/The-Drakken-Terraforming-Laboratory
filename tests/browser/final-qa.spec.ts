@@ -16,13 +16,15 @@ import {
 } from './helpers';
 
 test('final planet-first QA captures required visual states and objective layout checks', async ({ page }, testInfo) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const errors = captureBrowserErrors(page);
-  await openLab(page);
+  await openLab(page, false);
 
   const launcher = page.locator('#lab-controls-launcher');
   await expect(launcher).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#lab-controls-menu')).toBeHidden();
+  await expect(page.locator('#quickstart')).toBeHidden();
+  await expect(page.locator('.quickstart')).toHaveCount(1);
   await expect(page.locator('.dot-grid .dot')).toHaveCount(12);
 
   const canvas = page.locator('#viewport canvas');

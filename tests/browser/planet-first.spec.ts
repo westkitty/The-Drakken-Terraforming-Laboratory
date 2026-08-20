@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   captureBrowserErrors,
   clickPlay,
+  clickSystemView,
   closeControls,
   diagnostics,
   openControlFamily,
@@ -75,5 +76,31 @@ test('starfield exists as Three.js scene content rather than CSS decoration', as
     return `${body}|${shell}`.includes('radial-gradient') && /circle/.test(`${body}|${shell}`);
   });
   expect(cssStars).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('starfield near stars exhibit more projected parallax than far stars under camera dolly', async ({ page }) => {
+  const errors = captureBrowserErrors(page);
+  await openLab(page);
+  const home = await diagnostics(page);
+  const homeNear = home.renderer.starfield.anchors.near;
+  const homeFar = home.renderer.starfield.anchors.far;
+  expect(Math.hypot(homeNear.world.x, homeNear.world.y, homeNear.world.z)).toBeLessThan(
+    Math.hypot(homeFar.world.x, homeFar.world.y, homeFar.world.z)
+  );
+
+  await clickSystemView(page);
+  const system = await diagnostics(page);
+  const nearShift = Math.hypot(
+    system.renderer.starfield.anchors.near.projected.x - homeNear.projected.x,
+    system.renderer.starfield.anchors.near.projected.y - homeNear.projected.y
+  );
+  const farShift = Math.hypot(
+    system.renderer.starfield.anchors.far.projected.x - homeFar.projected.x,
+    system.renderer.starfield.anchors.far.projected.y - homeFar.projected.y
+  );
+  expect(nearShift).toBeGreaterThan(farShift);
+  expect(nearShift).toBeGreaterThan(0.002);
+  expect(system.renderer.render.points).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });

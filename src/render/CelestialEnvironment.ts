@@ -12,6 +12,7 @@ export class CelestialEnvironment {
   readonly definitions: readonly CelestialBodyDefinition[];
   private readonly meshes = new Map<string, THREE.Mesh>();
   private readonly glow = new Map<string, THREE.Mesh>();
+  private readonly proxies = new Map<string, THREE.Mesh>();
   private readonly pickableList: THREE.Object3D[] = [];
   private readonly marker: THREE.Mesh;
   private selectedId: string | null = null;
@@ -24,8 +25,11 @@ export class CelestialEnvironment {
       if (definition.kind === 'planet') continue;
       const mesh = createBodyMesh(definition);
       this.meshes.set(definition.id, mesh);
-      this.pickableList.push(mesh);
       this.group.add(mesh);
+      const proxy = createPickProxy(definition);
+      this.proxies.set(definition.id, proxy);
+      this.pickableList.push(proxy);
+      this.group.add(proxy);
       if (definition.kind === 'star') {
         const halo = createStarHalo(definition.radius);
         this.glow.set(definition.id, halo);
@@ -50,6 +54,8 @@ export class CelestialEnvironment {
       if (!mesh) continue;
       const pose = poseAtTick(definition, tick);
       mesh.position.set(pose.x, pose.y, pose.z);
+      const proxy = this.proxies.get(definition.id);
+      if (proxy) proxy.position.copy(mesh.position);
       const halo = this.glow.get(definition.id);
       if (halo) halo.position.copy(mesh.position);
     }
@@ -105,13 +111,15 @@ export class CelestialEnvironment {
     this.group.remove(this.marker);
     this.marker.geometry.dispose();
     (this.marker.material as THREE.Material).dispose();
-    for (const mesh of [...this.meshes.values(), ...this.glow.values()]) {
+    for (const mesh of [...this.meshes.values(), ...this.glow.values(), ...this.proxies.values()]) {
       mesh.geometry.dispose();
       (mesh.material as THREE.Material).dispose();
       this.group.remove(mesh);
     }
     this.meshes.clear();
     this.glow.clear();
+    this.proxies.clear();
+    this.pickableList.length = 0;
   }
 
   private syncMarker(): void {
@@ -140,6 +148,29 @@ function createBodyMesh(definition: CelestialBodyDefinition): THREE.Mesh {
   mesh.userData.celestialId = definition.id;
   if (definition.kind === 'minor') mesh.scale.set(1, 0.82, 0.94);
   return mesh;
+}
+
+function pickRadius(definition: CelestialBodyDefinition): number {
+  const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+  if (definition.kind === 'star') return definition.radius * (coarse ? 1.25 : 1.12);
+  if (definition.kind === 'moon') return Math.max(0.58, definition.radius * (coarse ? 2.8 : 2.2));
+  return Math.max(coarse ? 0.52 : 0.4, definition.radius * (coarse ? 6.2 : 4.8));
+}
+
+function createPickProxy(definition: CelestialBodyDefinition): THREE.Mesh {
+  const proxy = new THREE.Mesh(
+    new THREE.SphereGeometry(pickRadius(definition), 16, 12),
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      depthTest: true,
+      colorWrite: false
+    })
+  );
+  proxy.name = `${definition.id}-proxy`;
+  proxy.userData.celestialId = definition.id;
+  return proxy;
 }
 
 function createStarHalo(radius: number): THREE.Mesh {

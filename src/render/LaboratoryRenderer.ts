@@ -119,8 +119,23 @@ export class LaboratoryRenderer {
   }
   setSelected(index: number): void { if (this.selectedIndex === index) return; this.selectedIndex = index; this.updateSelectionMarker(); }
   setComparisonState(state: PlanetState | null): void { if (this.comparisonState === state) return; this.comparisonState = state; this.colorDirty = true; }
-  starfieldSnapshot(): { bands: number; vertices: number } {
-    return { bands: this.starfield.bandCount(), vertices: this.starfield.vertexCount() };
+  starfieldSnapshot(): {
+    bands: number;
+    vertices: number;
+    anchors: {
+      near: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+      far: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+    };
+  } {
+    const world = this.starfield.anchors();
+    return {
+      bands: this.starfield.bandCount(),
+      vertices: this.starfield.vertexCount(),
+      anchors: {
+        near: { world: world.near, projected: this.projectPoint(world.near.x, world.near.y, world.near.z) },
+        far: { world: world.far, projected: this.projectPoint(world.far.x, world.far.y, world.far.z) }
+      }
+    };
   }
 
   render(): void {
@@ -259,6 +274,11 @@ export class LaboratoryRenderer {
     this.cameraOffset.copy(this.camera.position).sub(this.controls.target);
     this.controls.target.set(pose.x, pose.y, pose.z);
     this.camera.position.copy(this.controls.target).add(this.cameraOffset);
+  }
+
+  private projectPoint(x: number, y: number, z: number): { x: number; y: number } {
+    this.projectNdc.set(x, y, z).project(this.camera);
+    return { x: (this.projectNdc.x + 1) / 2, y: (1 - this.projectNdc.y) / 2 };
   }
 
   private projectBodies(tick: number): Record<string, { x: number; y: number; visible: boolean; frontmost: boolean }> {

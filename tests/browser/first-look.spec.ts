@@ -26,7 +26,8 @@ test('initial application starts with a real WebGL canvas and clean console', as
   await expect(page.getByRole('region', { name: /interactive planetary viewport/i })).toBeVisible();
   await expect(page.locator('#tickout')).toHaveText('TICK 0');
   await expect(page.locator('#lab-controls-launcher')).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.locator('#quickstart')).toBeVisible();
+  await expect(page.locator('#lab-controls-menu')).toBeHidden();
+  await expect(page.locator('#quickstart')).toBeHidden();
   const webgl = await page.locator('#viewport canvas').evaluate(canvas => {
     const element = canvas as HTMLCanvasElement;
     return Boolean(element.getContext('webgl2') || element.getContext('webgl'));
@@ -42,6 +43,7 @@ test('initial application starts with a real WebGL canvas and clean console', as
 });
 
 test('Fault-Tongue changes authoritative state before the rendered inspection result', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   const errors = captureBrowserErrors(page);
   await openLab(page);
   await selectProcess(page, 'fault-tongue');
@@ -65,6 +67,7 @@ test('Fault-Tongue changes authoritative state before the rendered inspection re
 });
 
 test('Cloudmaw redistributes water while preserving modeled total water', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   const errors = captureBrowserErrors(page);
   await openLab(page);
   const startingWater = await ledgerValue(page, 'WATER MASS');

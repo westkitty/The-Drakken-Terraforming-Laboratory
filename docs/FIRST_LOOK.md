@@ -4,9 +4,9 @@ Use the default seed `19870615` for the first pass. The point is not to exhaust 
 
 ## 0. Arrive in a collapsed planet view
 
-On load, leave the 12-dot **Laboratory controls** closed. Dismiss the first-run card if it is in the way.
+On load, leave the 12-dot **Laboratory controls** closed. First-run instructions live inside **RUN**, not as a card over the planet.
 
-Look for: the Three.js scene fills the viewport; the terraformable planet is immediately dominant; there is no permanent dashboard wall; starfield depth is visible behind the planet; the distant system star is present in world space; the compact 12-dot launcher sits at the edge.
+Look for: the Three.js scene fills the viewport; the terraformable planet is immediately dominant; there is no permanent dashboard wall and no large onboarding overlay; starfield depth is visible behind the planet; the distant system star is present in world space; the compact 12-dot launcher sits at the edge.
 
 ## 1. Inspect the planet close-up
 

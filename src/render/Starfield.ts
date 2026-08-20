@@ -20,6 +20,8 @@ const BANDS: readonly StarBand[] = [
 export class Starfield {
   readonly group = new THREE.Group();
   private readonly points: THREE.Points[] = [];
+  private readonly nearAnchor = new THREE.Vector3();
+  private readonly farAnchor = new THREE.Vector3();
 
   constructor(seed: number) {
     this.group.name = 'starfield';
@@ -33,7 +35,17 @@ export class Starfield {
       const object = createBand(band, rng);
       this.points.push(object);
       this.group.add(object);
+      const position = object.geometry.getAttribute('position');
+      if (band.name === 'near' && position) this.nearAnchor.set(position.getX(0), position.getY(0), position.getZ(0));
+      if (band.name === 'far' && position) this.farAnchor.set(position.getX(0), position.getY(0), position.getZ(0));
     }
+  }
+
+  anchors(): { near: { x: number; y: number; z: number }; far: { x: number; y: number; z: number } } {
+    return {
+      near: { x: this.nearAnchor.x, y: this.nearAnchor.y, z: this.nearAnchor.z },
+      far: { x: this.farAnchor.x, y: this.farAnchor.y, z: this.farAnchor.z }
+    };
   }
 
   bandCount(): number {

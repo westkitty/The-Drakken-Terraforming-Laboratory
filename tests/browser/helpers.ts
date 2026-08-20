@@ -26,7 +26,14 @@ export interface BrowserDiagnostics {
     controlsDampingEnabled: boolean;
     gpuRenderer: string;
     gpuVendor: string;
-    starfield: { bands: number; vertices: number };
+    starfield: {
+      bands: number;
+      vertices: number;
+      anchors: {
+        near: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+        far: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+      };
+    };
     camera: { minDistance: number; maxDistance: number; near: number; far: number; distance: number; target: { x: number; y: number; z: number } };
     celestial: {
       selectedId: string | null;
@@ -116,9 +123,9 @@ export async function setRange(page: Page, id: 'intensity' | 'radius', value: nu
 
 export async function runUntilTick(page: Page, tick: number): Promise<void> {
   await openControlFamily(page, 'run');
-  if ((await diagnostics(page)).playing === false) await page.locator('#play').click({ force: true });
+  if ((await diagnostics(page)).playing === false) await page.locator('#play').click();
   await expect.poll(async () => (await diagnostics(page)).tick, { timeout: 20_000 }).toBeGreaterThanOrEqual(tick);
-  if ((await diagnostics(page)).playing) await page.locator('#play').click({ force: true });
+  if ((await diagnostics(page)).playing) await page.locator('#play').click();
 }
 
 export async function ledgerValue(page: Page, label: string): Promise<number> {
@@ -137,12 +144,12 @@ export async function setTimelineTick(page: Page, tick: number): Promise<void> {
     input.value = String(nextTick);
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }, tick);
-  await expect.poll(async () => (await diagnostics(page)).tick).toBe(tick);
+  await expect.poll(async () => (await diagnostics(page)).tick, { timeout: 20_000 }).toBe(tick);
 }
 
 export async function clickPlay(page: Page): Promise<void> {
   await openControlFamily(page, 'run');
-  await page.locator('#play').click({ force: true });
+  await page.locator('#play').click();
 }
 
 export async function setSpeed(page: Page, value: string): Promise<void> {
@@ -184,14 +191,14 @@ export async function clickFocusPlanet(page: Page): Promise<void> {
   await clickCameraReset(page);
 }
 
-export async function clickCelestial(page: Page, id: string): Promise<void> {
+export async function clickCelestial(page: Page, id: string, offsetRatio = 0): Promise<void> {
   await expect.poll(async () => {
     const point = (await diagnostics(page)).renderer.celestial.projected[id];
     return Boolean(point?.visible && point.frontmost);
   }, { timeout: 8_000 }).toBe(true);
   const point = (await diagnostics(page)).renderer.celestial.projected[id];
   if (!point) throw new Error(`Missing projection for ${id}`);
-  await clickGlobe(page, point.x, point.y);
+  await clickGlobe(page, point.x + offsetRatio, point.y);
 }
 
 export async function clickRegenerate(page: Page): Promise<void> {

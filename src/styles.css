@@ -39,10 +39,10 @@ input[type="range"] { width: 100%; accent-color: #5ca8ce; }
   background: var(--bg-deep);
 }
 
-.viewport-wrap { position: absolute; inset: 0; min-width: 0; min-height: 0; overflow: hidden; background: #030507; }
-.viewport { position: absolute; inset: 0; }
+.viewport-wrap { position: absolute; inset: 0; min-width: 0; min-height: 0; overflow: hidden; background: #030507; isolation: isolate; }
+.viewport { position: absolute; inset: 0; z-index: 0; }
 .viewport:focus-visible { outline-offset: -3px; }
-.viewport canvas { display: block; width: 100%; height: 100%; }
+.viewport canvas { display: block; width: 100%; height: 100%; position: relative; z-index: 0; }
 .viewport[data-render-state="lost"]::after {
   content: "WEBGL CONTEXT LOST · WAITING FOR GPU RESTORE";
   position: absolute;
@@ -60,7 +60,8 @@ input[type="range"] { width: 100%; accent-color: #5ca8ce; }
 
 .dot-launcher {
   position: absolute;
-  z-index: 20;
+  z-index: 22;
+  pointer-events: auto;
   top: .72rem;
   left: .72rem;
   display: grid;
@@ -90,7 +91,7 @@ input[type="range"] { width: 100%; accent-color: #5ca8ce; }
 
 .controls-menu {
   position: absolute;
-  z-index: 19;
+  z-index: 21;
   top: 3.4rem;
   left: .72rem;
   display: grid;
@@ -102,6 +103,7 @@ input[type="range"] { width: 100%; accent-color: #5ca8ce; }
   border: 1px solid #1e3a4b;
   background: var(--panel);
   backdrop-filter: blur(14px);
+  pointer-events: auto;
 }
 
 .family-nav {
@@ -173,7 +175,8 @@ label { display: grid; gap: .35rem; margin: .78rem 0; color: #86a4b5; font-size:
 
 .targeting {
   position: absolute;
-  z-index: 5;
+  z-index: 6;
+  pointer-events: none;
   top: .78rem;
   left: 50%;
   transform: translateX(-50%);
@@ -185,7 +188,6 @@ label { display: grid; gap: .35rem; margin: .78rem 0; color: #86a4b5; font-size:
   font-size: .58rem;
   letter-spacing: .035em;
   text-align: center;
-  pointer-events: none;
 }
 .tick-chip {
   position: absolute;
@@ -203,15 +205,10 @@ label { display: grid; gap: .35rem; margin: .78rem 0; color: #86a4b5; font-size:
 }
 
 .quickstart {
-  position: absolute;
-  z-index: 5;
-  top: .72rem;
-  right: .72rem;
-  width: min(280px, calc(100% - 5.2rem));
-  border: 1px solid #31546888;
-  background: #080e14d4;
-  padding: .72rem;
-  backdrop-filter: blur(10px);
+  margin-top: .7rem;
+  padding: .55rem .5rem .45rem;
+  border: 1px solid #31546866;
+  background: #080e1488;
 }
 .quickstart strong { display: block; margin-top: .2rem; color: #d9edf6; font-size: .72rem; font-weight: 500; }
 .quickstart ol { margin: .55rem 0 .65rem; padding-left: 1.25rem; color: #89a8b8; font-size: .61rem; line-height: 1.55; }
@@ -268,7 +265,7 @@ label { display: grid; gap: .35rem; margin: .78rem 0; color: #86a4b5; font-size:
 @media (max-width: 720px) {
   html, body, #app { overflow: hidden; }
   .targeting { max-width: calc(100% - 6.4rem); }
-  .quickstart { width: min(240px, calc(100% - 5.4rem)); }
+  .quickstart { width: auto; }
   .controls-menu {
     top: auto;
     left: 0;

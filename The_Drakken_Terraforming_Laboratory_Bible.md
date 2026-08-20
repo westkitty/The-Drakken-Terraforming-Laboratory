@@ -956,4 +956,47 @@ Decisions:
 - Do not restyle beyond the bounded visibility/lifecycle repairs.
 - Do not merge to `main`.
 
+### Entry 16 - Correct planet-first interaction and QA evidence
+Summary:
+- Targeted correction on `planet-first-space-system`: overlay stacking so PLAY is ordinarily clickable, first-run guide moved into RUN, human-scale celestial pick proxies, differential starfield parallax, and one uninterrupted 18-test Chrome Playwright run.
+
+Reason / Intent:
+- Prior integration QA left overlay clickability, first-frame screenshot purity, celestial picking, and a single full browser-suite run unresolved. This pass repairs those interactions and records only the single-run evidence.
+
+Files Changed:
+- `src/ui/LaboratoryApp.ts`
+- `src/styles.css`
+- `src/render/CelestialEnvironment.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/render/Starfield.ts`
+- `src/browserDiagnostics.ts`
+- `tests/browser/helpers.ts`
+- `tests/browser/celestial.spec.ts`
+- `tests/browser/final-qa.spec.ts`
+- `tests/browser/first-look.spec.ts`
+- `tests/browser/planet-first.spec.ts`
+- `docs/FIRST_LOOK.md`
+- `docs/VALIDATION.md`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 15 files / 55 tests PASS (`npx vitest run src/tests --testTimeout=20000`)
+Vite 7.3.5 production build: PASS
+npm run test:browser -- --workers=1: 18 / 18 PASS in 4.7 minutes
+Local Chrome: 151.0.7922.138
+QA screenshots: qa-01 .. qa-07 from that same run
+Regenerate unique geometries/materials: 16 / 16
+Heap delta after 3 regenerates: about +418 kB
+```
+
+Decisions:
+- Keep PLAY on ordinary Playwright actionability; do not restore `force: true`.
+- First-run guidance stays inside RUN so the default screenshot is the literal first frame.
+- Invisible pick proxies use depth testing so occluded bodies cannot be selected through the planet.
+- Do not merge this branch to `main`.
+
 

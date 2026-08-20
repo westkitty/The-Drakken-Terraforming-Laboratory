@@ -28,7 +28,14 @@ export interface BrowserDiagnostics {
     controlsDampingEnabled: boolean;
     gpuRenderer: string;
     gpuVendor: string;
-    starfield: { bands: number; vertices: number };
+    starfield: {
+      bands: number;
+      vertices: number;
+      anchors: {
+        near: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+        far: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+      };
+    };
     camera: { minDistance: number; maxDistance: number; near: number; far: number; distance: number; target: { x: number; y: number; z: number } };
     celestial: {
       selectedId: string | null;

@@ -66,11 +66,6 @@ export class LaboratoryApp {
           </button>
           <div id="targeting" class="targeting" aria-live="polite">PLACEMENT · FAULT-TONGUE · TARGETING READY</div>
           <output id="tickout" class="tick-chip">TICK 0</output>
-          <section id="quickstart" class="quickstart" aria-label="First run guide">
-            <div><p class="section-kicker">FIRST RUN</p><strong>Make one cause visible.</strong></div>
-            <ol><li>Open the 12-dot controls.</li><li>Choose a Drakken process.</li><li>Click the planet, press PLAY, then rewind or fork B.</li></ol>
-            <button id="quickstartDismiss" type="button">DISMISS</button>
-          </section>
           <div class="layerlegend" id="layerlegend" aria-live="polite"></div>
 
           <div id="lab-controls-menu" class="controls-menu" hidden>
@@ -91,6 +86,11 @@ export class LaboratoryApp {
                 <label>SPEED <select id="speed"><option>.25</option><option selected>1</option><option>4</option><option>16</option><option>64</option></select></label>
               </div>
               <button id="regenerate" class="wide-control">REGENERATE / RESET</button>
+              <section id="quickstart" class="quickstart" aria-label="First run guide">
+                <div><p class="section-kicker">FIRST RUN</p><strong>Make one cause visible.</strong></div>
+                <ol><li>Choose a Drakken process.</li><li>Click the planet to deploy it.</li><li>Press PLAY, then rewind or fork B.</li></ol>
+                <button id="quickstartDismiss" type="button">DISMISS</button>
+              </section>
             </section>
 
             <aside id="family-drakken" class="panel rack family-panel" hidden aria-label="Experiment rack">

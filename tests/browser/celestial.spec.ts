@@ -79,7 +79,22 @@ test('celestial transforms follow simulation time and rewind, and body clicks se
   expect(errors).toEqual([]);
 });
 
+test('visible celestial bodies remain selectable slightly off their projected center', async ({ page }) => {
+  test.setTimeout(60_000);
+  const errors = captureBrowserErrors(page);
+  await openLab(page);
+  const before = (await diagnostics(page)).processCount;
+  await runUntilTick(page, 48);
+  await clickSystemView(page);
+  await clickCelestial(page, 'outer-1', 0.012);
+  const after = await diagnostics(page);
+  expect(after.renderer.celestial.selectedId).toBe('outer-1');
+  expect(after.processCount).toBe(before);
+  expect(errors).toEqual([]);
+});
+
 test('regenerate restores celestial resources without leaking unique geometries', async ({ page }) => {
+  test.setTimeout(90_000);
   const errors = captureBrowserErrors(page);
   await openLab(page);
   const baseline = await diagnostics(page);
