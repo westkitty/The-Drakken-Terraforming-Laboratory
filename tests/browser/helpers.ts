@@ -27,6 +27,15 @@ export interface BrowserDiagnostics {
     gpuRenderer: string;
     gpuVendor: string;
     starfield: { bands: number; vertices: number };
+    camera: { minDistance: number; maxDistance: number; near: number; far: number; distance: number; target: { x: number; y: number; z: number } };
+    celestial: {
+      selectedId: string | null;
+      focusId: string;
+      star: { id: string; x: number; y: number; z: number; radius: number } | null;
+      moon: { id: string; x: number; y: number; z: number; orbitRadius: number; phase: number } | null;
+      minors: { id: string; name: string; x: number; y: number; z: number; orbitRadius: number; phase: number }[];
+      projected: Record<string, { x: number; y: number; visible: boolean; frontmost: boolean }>;
+    };
   };
 }
 
@@ -164,6 +173,25 @@ export async function clickBranch(page: Page, id: 'A' | 'B'): Promise<void> {
 export async function clickCameraReset(page: Page): Promise<void> {
   await openControlFamily(page, 'view');
   await page.locator('#camera').click();
+}
+
+export async function clickSystemView(page: Page): Promise<void> {
+  await openControlFamily(page, 'view');
+  await page.locator('#system-view').click();
+}
+
+export async function clickFocusPlanet(page: Page): Promise<void> {
+  await clickCameraReset(page);
+}
+
+export async function clickCelestial(page: Page, id: string): Promise<void> {
+  await expect.poll(async () => {
+    const point = (await diagnostics(page)).renderer.celestial.projected[id];
+    return Boolean(point?.visible && point.frontmost);
+  }, { timeout: 8_000 }).toBe(true);
+  const point = (await diagnostics(page)).renderer.celestial.projected[id];
+  if (!point) throw new Error(`Missing projection for ${id}`);
+  await clickGlobe(page, point.x, point.y);
 }
 
 export async function clickRegenerate(page: Page): Promise<void> {

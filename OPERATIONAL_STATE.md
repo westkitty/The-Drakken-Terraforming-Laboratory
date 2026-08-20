@@ -7,12 +7,12 @@
   "project_name": "The Drakken Terraforming Laboratory",
   "project_root": "/mnt/data/The-Drakken-Terraforming-Laboratory",
   "artifact_path": null,
-  "state_revision": 7,
-  "last_updated": "2026-08-19T23:42:00-04:00",
+  "state_revision": 8,
+  "last_updated": "2026-08-20T00:12:00-04:00",
   "current_baseline": {
-    "identity": "planet-first-space-system branch over main 77bb47b320d22514448fefe85946ff43aec37ee2",
+    "identity": "planet-first-space-system Phase 2 celestial environment over 99501fcfaf11b7b6eb79b9f182de73de78f04c42",
     "state": "partially-verified",
-    "last_verified": "2026-08-19T23:42:00-04:00"
+    "last_verified": "2026-08-20T00:12:00-04:00"
   },
   "scope_boundaries": [
     "Initial browser-based deterministic Three.js Drakken terraforming laboratory prototype"
@@ -35,15 +35,14 @@
 
 ## 2. Current Baseline
 
-- **Application source:** feature branch `planet-first-space-system` based on current `main` `77bb47b320d22514448fefe85946ff43aec37ee2`. Simulation model is unchanged from the final pre-test defect-sweep baseline.
-- **Presentation:** default viewport is the full-window Three.js planet/starfield. Primary controls recede behind a closed 12-dot laboratory launcher; family panels float over the scene and do not resize the canvas.
-- **Dependency reproducibility:** committed npm lockfile; local `npm ci` PASS. No package/lock changes in this branch.
-- **Dependency-backed validation:** local strict TypeScript PASS; 14 Vitest files / 49 tests PASS (including 3 new starfield determinism/depth-band tests); Vite `7.3.5` production build PASS.
-- **Authoritative simulation:** existing conservation/determinism/history/stress/full-pipeline suites remain green; this phase did not change PlanetState, processes, or history.
-- **Starfield:** deterministic world-space `THREE.Points` helper with three depth bands, seeded from `SeededRandom`/`hashSeed`, generated once per renderer/seed, disposed with the renderer. No CSS stars, no `Math.random()`, no second frame loop.
-- **Browser path:** local Google Chrome `151.0.7922.138`; Playwright `12/12` PASS with `--workers=1`, including first-look journeys through the launcher, 12-dot a11y/Escape/canvas-stability, starfield scene-content proof, semantics, reduced-motion, stress/reset/context recovery, and lifecycle smoke.
-- **Runtime lifecycle:** reset cycles still return unique geometry/material counts to baseline. Full-viewport Metal frame times are recorded evidence only; the older dashboard-canvas 16.7/25 ms budgets are not comparable to this presentation. Target-hardware thermals remain unverified.
-- **Overall state:** PARTIAL / partially verified. This branch is not merged to `main`. Human visual judgment, physical touch feel, and representative sustained performance remain outside current evidence.
+- **Application source:** feature branch `planet-first-space-system` continuing Phase 1 commit `99501fcfaf11b7b6eb79b9f182de73de78f04c42`. Authoritative PlanetState remains at the origin and is not orbited around the star.
+- **Presentation:** planet-first default framing; 12-dot launcher; FOCUS PLANET / HOME and SYSTEM VIEW in VIEW; celestial inspect in INSPECT.
+- **Celestial environment:** seeded system star mesh, Primary Moon, Outer Body 1, Outer Body 2. Orbital transforms derive from simulation tick only. Directional key light aligns with the visible star.
+- **Camera:** minDistance 1.65 retained; maxDistance 48; near 0.12; far 420. Default camera still features the planet.
+- **Dependency-backed validation:** typecheck PASS; 15 Vitest files / 54 tests PASS; Vite `7.3.5` production build PASS. No package/lock changes.
+- **Browser path:** local Google Chrome 151; Playwright `15/15` PASS with `--workers=1`, including prior first-look/planet-first journeys plus celestial zoom, selection-without-deploy, tick-driven rewind, and regenerate resource-count restoration.
+- **Runtime lifecycle:** three regenerate cycles return unique geometry/material counts to baseline.
+- **Overall state:** PARTIAL / partially verified. Branch is not merged to `main`.
 
 ## 3. Artifact Contract
 
@@ -233,3 +232,10 @@
 - **Starfield:** seeded world-space Three.js points, three depth bands, one-time geometry, explicit dispose, no CSS/remote assets/`Math.random()`/second loop.
 - **Local validation:** `npm ci` PASS; typecheck PASS; 14/14 Vitest files, 49/49 tests PASS; Vite 7.3.5 build PASS; Chrome 151 Playwright 12/12 PASS (`--workers=1`).
 - **Deliberate non-change:** simulation model, conservation, rewind/branching, process set, and lockfile.
+
+### Revision 8 — 2026-08-20T00:12:00-04:00
+
+- **Branch:** `planet-first-space-system` Phase 2 celestial environment. Not merged.
+- **Added:** tick-driven celestial model/helper; system star; Primary Moon; two outer bodies; expanded camera/starfield; body picking that cannot deploy; FOCUS PLANET / SYSTEM VIEW / FOCUS SELECTED.
+- **Local validation:** typecheck PASS; 15 files / 54 tests PASS; Vite 7.3.5 build PASS; Chrome Playwright 15/15 PASS (`--workers=1`).
+- **Deliberate non-change:** PlanetState stays at the origin; no second clock; no new npm dependencies.

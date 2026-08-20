@@ -879,3 +879,42 @@ Decisions:
 State After Completion:
 - Feature exists on `planet-first-space-system` only.
 - Overall project remains PARTIAL / partially verified pending human first look and representative hardware performance.
+
+### Entry 14 - Interactive celestial system and deep zoom
+Summary:
+- Expanded the Phase-1 planet-first viewport into a small seeded celestial environment: a visible system star, Primary Moon, and two sparse outer bodies, with tick-driven orbits and body picking.
+- Raised camera max distance and far plane while keeping the default framing on the terraformable planet at the origin.
+
+Reason / Intent:
+- Let the user zoom out into a real system-scale view without turning the laboratory into a second astrophysical simulator or moving PlanetState off the origin.
+
+Files Changed:
+- `src/render/celestialSystem.ts`
+- `src/render/CelestialEnvironment.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/render/Starfield.ts`
+- `src/ui/LaboratoryApp.ts`
+- `src/styles.css`
+- `src/browserDiagnostics.ts`
+- `src/tests/celestialSystem.test.ts`
+- `src/tests/starfield.test.ts`
+- `tests/browser/helpers.ts`
+- `tests/browser/celestial.spec.ts`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+typecheck: PASS
+Vitest: 15 files / 54 tests PASS
+Vite 7.3.5 production build: PASS
+Local Chrome 151 Playwright: 15 / 15 PASS (--workers=1)
+Regenerate unique geometry/material counts restored
+```
+
+Decisions:
+- Celestial orbits use simulation tick only, never wall-clock time.
+- Celestial clicks select; only the primary planet remains a Drakken deployment surface.
+- Neutral names: Primary Moon, Outer Body 1, Outer Body 2.
+- Do not merge this branch to `main` in this phase.
+

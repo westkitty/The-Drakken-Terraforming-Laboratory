@@ -2,16 +2,24 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GRID_HEIGHT, GRID_WIDTH, type LayerId } from '../simulation/types';
 import { uvToGridCell } from './gridUv';
+import { CelestialEnvironment } from './CelestialEnvironment';
+import {
+  CAMERA_FAR, CAMERA_HOME, CAMERA_MAX_DISTANCE, CAMERA_MIN_DISTANCE, CAMERA_NEAR, CAMERA_SYSTEM
+} from './celestialSystem';
 import { Starfield } from './Starfield';
 import type { PlanetState } from '../simulation/PlanetState';
 import type { SimulationEngine } from '../simulation/SimulationEngine';
 
 export class LaboratoryRenderer {
   readonly renderer: THREE.WebGLRenderer;
-  readonly camera = new THREE.PerspectiveCamera(42, 1, 0.1, 220);
+  readonly camera = new THREE.PerspectiveCamera(42, 1, CAMERA_NEAR, CAMERA_FAR);
   readonly controls: OrbitControls;
   private readonly scene = new THREE.Scene();
   private readonly starfield: Starfield;
+  private readonly celestial: CelestialEnvironment;
+  private readonly keyLight = new THREE.DirectionalLight(0xffffff, 1.72);
+  private focusId = 'primary';
+  private readonly cameraOffset = new THREE.Vector3();
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
   private readonly geometry: THREE.SphereGeometry;
@@ -36,6 +44,8 @@ export class LaboratoryRenderer {
   private pendingHover: { clientX: number; clientY: number } | null = null;
   onCellPick?: (index: number, lat: number, lon: number) => void;
   onCellHover?: (index: number, lat: number, lon: number) => void;
+  onCelestialPick?: (id: string) => void;
+  onCelestialHover?: (id: string) => void;
 
   constructor(private readonly container: HTMLElement, private readonly engine: SimulationEngine) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -43,16 +53,20 @@ export class LaboratoryRenderer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.domElement.setAttribute('aria-hidden', 'true');
     container.append(this.renderer.domElement);
-    this.camera.position.set(0, 0.4, 3.1);
+    this.camera.position.set(CAMERA_HOME.x, CAMERA_HOME.y, CAMERA_HOME.z);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enablePan = false; this.controls.minDistance = 1.65; this.controls.maxDistance = 5.4;
+    this.controls.enablePan = false; this.controls.minDistance = CAMERA_MIN_DISTANCE; this.controls.maxDistance = CAMERA_MAX_DISTANCE;
     this.controls.enableDamping = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.scene.background = new THREE.Color(0x04070a);
     this.scene.add(new THREE.HemisphereLight(0xbddcff, 0x100d12, 1.05));
-    const key = new THREE.DirectionalLight(0xffffff, 1.85); key.position.set(3, 2, 4); this.scene.add(key);
-    const rim = new THREE.DirectionalLight(0x6caed1, 0.46); rim.position.set(-3, 0.7, -2.5); this.scene.add(rim);
     this.starfield = new Starfield(engine.seed);
     this.scene.add(this.starfield.group);
+    this.celestial = new CelestialEnvironment(engine.seed);
+    this.scene.add(this.celestial.group);
+    this.keyLight.position.copy(this.celestial.starDirection());
+    this.scene.add(this.keyLight);
+    this.scene.add(this.keyLight.target);
+    const rim = new THREE.DirectionalLight(0x6caed1, 0.38); rim.position.set(-3, 0.7, -2.5); this.scene.add(rim);
     this.geometry = new THREE.SphereGeometry(1, GRID_WIDTH, GRID_HEIGHT - 1);
     this.basePositions = new Float32Array(this.geometry.attributes.position!.array as Float32Array);
     const colors = new Float32Array(this.geometry.attributes.position!.count * 3); this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -71,7 +85,34 @@ export class LaboratoryRenderer {
 
   setLayer(layer: LayerId): void { if (this.layer === layer) return; this.layer = layer; this.colorDirty = true; }
   markDirty(): void { this.positionDirty = true; this.colorDirty = true; this.atmosphereDirty = true; this.ringDirty = true; }
-  resetCamera(): void { this.camera.position.set(0, 0.4, 3.1); this.controls.target.set(0,0,0); this.controls.update(); }
+  resetCamera(): void { this.focusId = 'primary'; this.camera.position.set(CAMERA_HOME.x, CAMERA_HOME.y, CAMERA_HOME.z); this.controls.target.set(0,0,0); this.controls.update(); }
+  systemView(): void {
+    this.focusId = 'primary';
+    this.camera.position.set(CAMERA_SYSTEM.x, CAMERA_SYSTEM.y, CAMERA_SYSTEM.z);
+    this.controls.target.set(0, 0, 0);
+    this.controls.update();
+  }
+  setFocus(id: string): void { this.focusId = id; }
+  setSelectedBody(id: string | null): void { this.celestial.setSelected(id); }
+  cameraRange(): { minDistance: number; maxDistance: number; near: number; far: number; distance: number } {
+    return {
+      minDistance: this.controls.minDistance,
+      maxDistance: this.controls.maxDistance,
+      near: this.camera.near,
+      far: this.camera.far,
+      distance: this.camera.position.distanceTo(this.controls.target)
+    };
+  }
+  celestialPose(id: string) {
+    return this.celestial.pose(id);
+  }
+  celestialSnapshot(tick = this.engine.state.tick) {
+    return {
+      ...this.celestial.snapshot(tick),
+      focusId: this.focusId,
+      projected: this.projectBodies(tick)
+    };
+  }
   setSelected(index: number): void { if (this.selectedIndex === index) return; this.selectedIndex = index; this.updateSelectionMarker(); }
   setComparisonState(state: PlanetState | null): void { if (this.comparisonState === state) return; this.comparisonState = state; this.colorDirty = true; }
   starfieldSnapshot(): { bands: number; vertices: number } {
@@ -80,6 +121,8 @@ export class LaboratoryRenderer {
 
   render(): void {
     if (this.contextLost) return;
+    this.celestial.setTick(this.engine.state.tick);
+    this.followFocus();
     if (this.pendingHover) { const pending = this.pendingHover; this.pendingHover = null; this.pickAt(pending.clientX, pending.clientY, true); }
     if (this.positionDirty) { this.updatePlanetGeometry(); this.positionDirty = false; }
     if (this.colorDirty) { this.updatePlanetColors(); this.colorDirty = false; }
@@ -189,10 +232,52 @@ export class LaboratoryRenderer {
     const rect = this.renderer.domElement.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
     this.pointer.set(((clientX-rect.left)/rect.width)*2-1, -((clientY-rect.top)/rect.height)*2+1);
-    this.raycaster.setFromCamera(this.pointer,this.camera); const hit = this.raycaster.intersectObject(this.mesh)[0]; if (!hit?.uv) return;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects([this.mesh, ...this.celestial.pickables()], true);
+    const hit = hits[0];
+    if (!hit) return;
+    const celestialId = this.celestial.bodyIdFromObject(hit.object);
+    if (celestialId) {
+      if (hover) this.onCelestialHover?.(celestialId);
+      else this.onCelestialPick?.(celestialId);
+      return;
+    }
+    if (hit.object !== this.mesh || !hit.uv) return;
     const { index: i } = uvToGridCell(hit.uv.x, hit.uv.y);
     const lat = Math.max(-90, Math.min(90, hit.uv.y*180-90)); const lon=Math.max(-180, Math.min(180, hit.uv.x*360-180));
     if (hover) this.onCellHover?.(i,lat,lon); else this.onCellPick?.(i,lat,lon);
+  }
+
+  private followFocus(): void {
+    if (this.focusId === 'primary') return;
+    const pose = this.celestial.pose(this.focusId);
+    if (!pose) return;
+    this.cameraOffset.copy(this.camera.position).sub(this.controls.target);
+    this.controls.target.set(pose.x, pose.y, pose.z);
+    this.camera.position.copy(this.controls.target).add(this.cameraOffset);
+  }
+
+  private projectBodies(tick: number): Record<string, { x: number; y: number; visible: boolean; frontmost: boolean }> {
+    const projected: Record<string, { x: number; y: number; visible: boolean; frontmost: boolean }> = {};
+    const ndc = new THREE.Vector3();
+    for (const definition of this.celestial.definitions) {
+      if (definition.kind === 'planet') continue;
+      const pose = this.celestial.pose(definition.id, tick);
+      if (!pose) continue;
+      ndc.set(pose.x, pose.y, pose.z).project(this.camera);
+      const visible = ndc.z > -1 && ndc.z < 1 && Math.abs(ndc.x) <= 1.15 && Math.abs(ndc.y) <= 1.15;
+      const origin = this.camera.position;
+      const target = new THREE.Vector3(pose.x, pose.y, pose.z);
+      const direction = target.clone().sub(origin);
+      const distance = direction.length();
+      direction.normalize();
+      this.raycaster.set(origin, direction);
+      const hits = this.raycaster.intersectObjects([this.mesh, ...this.celestial.pickables()], true);
+      const first = hits[0];
+      const frontmost = Boolean(first && this.celestial.bodyIdFromObject(first.object) === definition.id && first.distance <= distance + definition.radius);
+      projected[definition.id] = { x: (ndc.x + 1) / 2, y: (1 - ndc.y) / 2, visible, frontmost };
+    }
+    return projected;
   }
 
   private resize = (): void => { const w=this.container.clientWidth||640,h=this.container.clientHeight||480; this.renderer.setSize(w,h,false); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); };
@@ -208,6 +293,7 @@ export class LaboratoryRenderer {
     (this.atmosphere.geometry as THREE.BufferGeometry).dispose(); (this.atmosphere.material as THREE.Material).dispose();
     disposeGroup(this.ringGroup); this.ringGroup.clear();
     this.starfield.dispose(); this.scene.remove(this.starfield.group);
+    this.celestial.dispose(); this.scene.remove(this.celestial.group);
     this.renderer.dispose(); this.renderer.domElement.remove();
   }
 }

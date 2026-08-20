@@ -25,10 +25,10 @@ describe('starfield', () => {
     expect(field.vertexCount()).toBeGreaterThan(4000);
     const radii = radiiOf(field);
     expect(Math.min(...radii)).toBeGreaterThan(5.4);
-    expect(Math.max(...radii)).toBeGreaterThan(100);
-    const near = radii.filter(radius => radius < 18).length;
-    const mid = radii.filter(radius => radius >= 18 && radius < 60).length;
-    const far = radii.filter(radius => radius >= 60).length;
+    expect(Math.max(...radii)).toBeGreaterThan(200);
+    const near = radii.filter(radius => radius < 28).length;
+    const mid = radii.filter(radius => radius >= 28 && radius < 110).length;
+    const far = radii.filter(radius => radius >= 110).length;
     expect(near).toBeGreaterThan(50);
     expect(mid).toBeGreaterThan(near);
     expect(far).toBeGreaterThan(mid);

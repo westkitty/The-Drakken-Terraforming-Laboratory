@@ -43,6 +43,7 @@ export class LaboratoryApp {
   private targetingOverride = false;
   private controlsOpen = false;
   private activeFamily: ControlFamily | null = null;
+  private selectedBodyId: string | null = null;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -113,9 +114,14 @@ export class LaboratoryApp {
 
             <section id="family-view" class="family-panel" hidden aria-label="View controls">
               <p class="section-kicker">VIEW</p>
+              <h2>FRAMING</h2>
+              <div class="framing-actions">
+                <button id="camera" class="wide-control">FOCUS PLANET / HOME</button>
+                <button id="system-view" class="wide-control">SYSTEM VIEW</button>
+                <button id="focus-body" class="wide-control" disabled>FOCUS SELECTED</button>
+              </div>
               <h2>LAYERS</h2>
               <div class="layerbar" id="layerbar" aria-label="Planet inspection layers"></div>
-              <button id="camera" class="wide-control">RESET VIEW</button>
             </section>
 
             <footer id="family-history" class="timeline family-panel" hidden aria-label="History controls">
@@ -131,6 +137,9 @@ export class LaboratoryApp {
 
             <aside id="family-inspect" class="panel inspector family-panel" hidden aria-label="Planetary autopsy inspector">
               <div class="panel-heading"><div><p class="section-kicker">INSPECT</p><h2>PLANETARY AUTOPSY</h2></div></div>
+              <h3>CELESTIAL BODY</h3>
+              <div id="celestial-inspect" class="metric-grid"></div>
+              <h3>SELECTED CELL</h3>
               <div id="inspector"></div>
               <h3>MATERIAL LEDGER</h3><div id="ledger" class="metric-grid"></div>
               <h3>COMPARE A / B</h3><div id="compare"></div>
@@ -202,7 +211,9 @@ export class LaboratoryApp {
     });
     this.must('switchA').addEventListener('click', () => this.switchBranch('A'));
     this.must('switchB').addEventListener('click', () => { if (this.engine.branches.has('B')) this.switchBranch('B'); });
-    this.must('camera').addEventListener('click', () => this.renderer.resetCamera());
+    this.must('camera').addEventListener('click', () => this.focusPlanet());
+    this.must('system-view').addEventListener('click', () => this.renderer.systemView());
+    this.must('focus-body').addEventListener('click', () => this.focusSelectedBody());
     this.must('viewport').addEventListener('keydown', this.onViewportKeydown);
 
     this.root.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach(button => button.addEventListener('click', () => {
@@ -241,9 +252,15 @@ export class LaboratoryApp {
   }
 
   private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape' || !this.controlsOpen) return;
-    event.preventDefault();
-    this.toggleControls(false);
+    if (event.key === 'Escape') {
+      if (this.controlsOpen) { event.preventDefault(); this.toggleControls(false); return; }
+      if (this.selectedBodyId) { event.preventDefault(); this.focusPlanet(); }
+      return;
+    }
+    if ((event.key === 'f' || event.key === 'F') && !isEditableTarget(event.target) && this.selectedBodyId) {
+      event.preventDefault();
+      this.focusSelectedBody();
+    }
   };
 
   private loop = (now: number): void => {
@@ -298,6 +315,8 @@ export class LaboratoryApp {
     });
     this.must('layerlegend').textContent = LAYER_LEGENDS.normal;
     this.invalidateUiCaches();
+    this.selectedBodyId = null;
+    this.renderer.setSelectedBody(null);
     this.renderer.setSelected(this.selectedCell);
     this.updateTargetingForSelectedCell();
     this.refresh(true);
@@ -308,6 +327,37 @@ export class LaboratoryApp {
     this.renderer.onCellHover = (index, lat, lon) => {
       if (!this.targetingOverride) this.must('targeting').textContent = this.targetingText(index, lat, lon);
     };
+    this.renderer.onCelestialPick = id => this.selectCelestial(id);
+    this.renderer.onCelestialHover = id => {
+      if (!this.targetingOverride) this.must('targeting').textContent = `CELESTIAL · ${this.celestialName(id)}`;
+    };
+  }
+
+  private selectCelestial(id: string): void {
+    this.selectedBodyId = id;
+    this.renderer.setSelectedBody(id);
+    this.must<HTMLButtonElement>('focus-body').disabled = false;
+    this.targetingOverride = true;
+    this.must('targeting').textContent = `SELECTED · ${this.celestialName(id)}`;
+    this.refreshInspector(true);
+  }
+
+  private focusPlanet(): void {
+    this.selectedBodyId = null;
+    this.renderer.setSelectedBody(null);
+    this.must<HTMLButtonElement>('focus-body').disabled = true;
+    this.renderer.resetCamera();
+    this.updateTargetingForSelectedCell();
+    this.refreshInspector(true);
+  }
+
+  private focusSelectedBody(): void {
+    if (!this.selectedBodyId) return;
+    this.renderer.setFocus(this.selectedBodyId);
+  }
+
+  private celestialName(id: string): string {
+    return (this.renderer.celestialPose(id)?.name ?? id).toUpperCase();
   }
 
   private activateCell(index: number, lat: number, lon: number): void {
@@ -381,6 +431,7 @@ export class LaboratoryApp {
     this.refreshBranchControls();
     this.refreshStatusline();
     this.refreshInspector(force);
+    this.refreshCelestialInspect();
     this.refreshStatePanels(force);
     this.refreshInstances(force);
     this.refreshEvents(force);
@@ -416,9 +467,25 @@ export class LaboratoryApp {
     if (comparisonButton) comparisonButton.disabled = !hasBranchB;
   }
 
+  private refreshCelestialInspect(): void {
+    const panel = this.must('celestial-inspect');
+    const pose = this.selectedBodyId ? this.renderer.celestialPose(this.selectedBodyId) : null;
+    if (!pose) {
+      panel.innerHTML = '<span>OBJECT TYPE<b>NONE</b></span><span>OBJECT ID<b>—</b></span>';
+      return;
+    }
+    panel.innerHTML = [
+      ['OBJECT TYPE', pose.kind.toUpperCase()],
+      ['OBJECT ID', pose.id],
+      ['ORBITAL RADIUS', pose.orbitRadius.toFixed(3)],
+      ['CURRENT PHASE', pose.phase.toFixed(4)],
+      ['DISTANCE FROM PRIMARY', pose.distanceFromPrimary.toFixed(3)]
+    ].map(([key, value]) => `<span>${key}<b>${value}</b></span>`).join('');
+  }
+
   private refreshInspector(force = false): void {
     const state = this.engine.state;
-    const key = `${state.branchId}:${state.tick}:${this.selectedCell}`;
+    const key = `${state.branchId}:${state.tick}:${this.selectedCell}:${this.selectedBodyId ?? ''}`;
     if (!force && key === this.inspectorRenderKey) return;
     this.inspectorRenderKey = key;
     const cell = this.engine.selectedCell(this.selectedCell);
@@ -539,5 +606,10 @@ const LAYER_LEGENDS: Record<LayerId, string> = {
 };
 
 function display(id: ProcessId): string { return DRAKKEN_PROCESS_REGISTRY[id].displayName; }
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || target.isContentEditable;
+}
 function fmt(value: number): string { return Math.abs(value) >= 100 ? value.toFixed(1) : value.toFixed(4); }
 function label(value: string): string { return value.replace(/([A-Z])/g, ' $1').replace(/^./, char => char.toUpperCase()).toUpperCase(); }

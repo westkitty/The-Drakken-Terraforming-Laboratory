@@ -12,9 +12,9 @@ interface StarBand {
 }
 
 const BANDS: readonly StarBand[] = [
-  { name: 'near', count: 180, radiusMin: 7.2, radiusMax: 15.5, size: 0.072, brightnessMin: 0.70, brightnessMax: 0.94 },
-  { name: 'mid', count: 1100, radiusMin: 22, radiusMax: 54, size: 0.048, brightnessMin: 0.40, brightnessMax: 0.70 },
-  { name: 'far', count: 3200, radiusMin: 68, radiusMax: 175, size: 0.032, brightnessMin: 0.16, brightnessMax: 0.40 }
+  { name: 'near', count: 180, radiusMin: 8.5, radiusMax: 22, size: 0.08, brightnessMin: 0.70, brightnessMax: 0.94 },
+  { name: 'mid', count: 1100, radiusMin: 34, radiusMax: 92, size: 0.11, brightnessMin: 0.38, brightnessMax: 0.68 },
+  { name: 'far', count: 3200, radiusMin: 130, radiusMax: 340, size: 0.26, brightnessMin: 0.16, brightnessMax: 0.40 }
 ];
 
 export class Starfield {
