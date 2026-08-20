@@ -2,16 +2,30 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GRID_HEIGHT, GRID_WIDTH, type LayerId } from '../simulation/types';
 import { uvToGridCell } from './gridUv';
+import { CelestialEnvironment } from './CelestialEnvironment';
+import {
+  CAMERA_FAR, CAMERA_HOME, CAMERA_MAX_DISTANCE, CAMERA_MIN_DISTANCE, CAMERA_NEAR, CAMERA_SYSTEM
+} from './celestialSystem';
+import { celestialPickRadiusPx, celestialRayIsFrontmost, pointerIsCoarse, selectCelestialFallback } from './celestialPick';
+import { Starfield } from './Starfield';
 import type { PlanetState } from '../simulation/PlanetState';
 import type { SimulationEngine } from '../simulation/SimulationEngine';
 
 export class LaboratoryRenderer {
   readonly renderer: THREE.WebGLRenderer;
-  readonly camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  readonly camera = new THREE.PerspectiveCamera(42, 1, CAMERA_NEAR, CAMERA_FAR);
   readonly controls: OrbitControls;
   private readonly scene = new THREE.Scene();
+  private readonly starfield: Starfield;
+  private readonly celestial: CelestialEnvironment;
+  private readonly keyLight = new THREE.DirectionalLight(0xffffff, 1.72);
+  private focusId = 'primary';
+  private readonly cameraOffset = new THREE.Vector3();
+  private readonly projectNdc = new THREE.Vector3();
+  private readonly projectDir = new THREE.Vector3();
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
+  private pickTargets: THREE.Object3D[] = [];
   private readonly geometry: THREE.SphereGeometry;
   private readonly material: THREE.MeshStandardMaterial;
   private readonly mesh: THREE.Mesh;
@@ -34,6 +48,8 @@ export class LaboratoryRenderer {
   private pendingHover: { clientX: number; clientY: number } | null = null;
   onCellPick?: (index: number, lat: number, lon: number) => void;
   onCellHover?: (index: number, lat: number, lon: number) => void;
+  onCelestialPick?: (id: string) => void;
+  onCelestialHover?: (id: string) => void;
 
   constructor(private readonly container: HTMLElement, private readonly engine: SimulationEngine) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -41,19 +57,26 @@ export class LaboratoryRenderer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.domElement.setAttribute('aria-hidden', 'true');
     container.append(this.renderer.domElement);
-    this.camera.position.set(0, 0.4, 3.1);
+    this.camera.position.set(CAMERA_HOME.x, CAMERA_HOME.y, CAMERA_HOME.z);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enablePan = false; this.controls.minDistance = 1.65; this.controls.maxDistance = 5.4;
+    this.controls.enablePan = false; this.controls.minDistance = CAMERA_MIN_DISTANCE; this.controls.maxDistance = CAMERA_MAX_DISTANCE;
     this.controls.enableDamping = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.scene.background = new THREE.Color(0x06090d);
+    this.scene.background = new THREE.Color(0x04070a);
     this.scene.add(new THREE.HemisphereLight(0xbddcff, 0x100d12, 1.05));
-    const key = new THREE.DirectionalLight(0xffffff, 1.85); key.position.set(3, 2, 4); this.scene.add(key);
-    const rim = new THREE.DirectionalLight(0x6caed1, 0.46); rim.position.set(-3, 0.7, -2.5); this.scene.add(rim);
+    this.starfield = new Starfield(engine.seed);
+    this.scene.add(this.starfield.group);
+    this.celestial = new CelestialEnvironment(engine.seed);
+    this.scene.add(this.celestial.group);
+    this.keyLight.position.copy(this.celestial.starDirection());
+    this.scene.add(this.keyLight);
+    this.scene.add(this.keyLight.target);
+    const rim = new THREE.DirectionalLight(0x6caed1, 0.38); rim.position.set(-3, 0.7, -2.5); this.scene.add(rim);
     this.geometry = new THREE.SphereGeometry(1, GRID_WIDTH, GRID_HEIGHT - 1);
     this.basePositions = new Float32Array(this.geometry.attributes.position!.array as Float32Array);
     const colors = new Float32Array(this.geometry.attributes.position!.count * 3); this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.03 });
     this.mesh = new THREE.Mesh(this.geometry, this.material); this.scene.add(this.mesh);
+    this.pickTargets = [this.mesh, ...this.celestial.pickables()];
     this.selectionMarker.visible = false; this.selectionMarker.renderOrder = 4; this.scene.add(this.selectionMarker);
     this.atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.025, 64, 32), new THREE.MeshBasicMaterial({ color: 0x74a8cc, transparent: true, opacity: 0.08, side: THREE.BackSide, depthWrite: false })); this.scene.add(this.atmosphere);
     this.scene.add(this.ringGroup);
@@ -67,12 +90,59 @@ export class LaboratoryRenderer {
 
   setLayer(layer: LayerId): void { if (this.layer === layer) return; this.layer = layer; this.colorDirty = true; }
   markDirty(): void { this.positionDirty = true; this.colorDirty = true; this.atmosphereDirty = true; this.ringDirty = true; }
-  resetCamera(): void { this.camera.position.set(0, 0.4, 3.1); this.controls.target.set(0,0,0); this.controls.update(); }
+  resetCamera(): void { this.focusId = 'primary'; this.camera.position.set(CAMERA_HOME.x, CAMERA_HOME.y, CAMERA_HOME.z); this.controls.target.set(0,0,0); this.controls.update(); }
+  systemView(): void {
+    this.focusId = 'primary';
+    this.camera.position.set(CAMERA_SYSTEM.x, CAMERA_SYSTEM.y, CAMERA_SYSTEM.z);
+    this.controls.target.set(0, 0, 0);
+    this.controls.update();
+  }
+  setFocus(id: string): void { this.focusId = id; }
+  setSelectedBody(id: string | null): void { this.celestial.setSelected(id); }
+  cameraRange(): { minDistance: number; maxDistance: number; near: number; far: number; distance: number } {
+    return {
+      minDistance: this.controls.minDistance,
+      maxDistance: this.controls.maxDistance,
+      near: this.camera.near,
+      far: this.camera.far,
+      distance: this.camera.position.distanceTo(this.controls.target)
+    };
+  }
+  celestialPose(id: string) {
+    return this.celestial.pose(id);
+  }
+  celestialSnapshot(tick = this.engine.state.tick) {
+    return {
+      ...this.celestial.snapshot(tick),
+      focusId: this.focusId,
+      projected: this.projectBodies(tick)
+    };
+  }
   setSelected(index: number): void { if (this.selectedIndex === index) return; this.selectedIndex = index; this.updateSelectionMarker(); }
   setComparisonState(state: PlanetState | null): void { if (this.comparisonState === state) return; this.comparisonState = state; this.colorDirty = true; }
+  starfieldSnapshot(): {
+    bands: number;
+    vertices: number;
+    anchors: {
+      near: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+      far: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+    };
+  } {
+    const world = this.starfield.anchors();
+    return {
+      bands: this.starfield.bandCount(),
+      vertices: this.starfield.vertexCount(),
+      anchors: {
+        near: { world: world.near, projected: this.projectPoint(world.near.x, world.near.y, world.near.z) },
+        far: { world: world.far, projected: this.projectPoint(world.far.x, world.far.y, world.far.z) }
+      }
+    };
+  }
 
   render(): void {
     if (this.contextLost) return;
+    this.celestial.setTick(this.engine.state.tick);
+    this.followFocus();
     if (this.pendingHover) { const pending = this.pendingHover; this.pendingHover = null; this.pickAt(pending.clientX, pending.clientY, true); }
     if (this.positionDirty) { this.updatePlanetGeometry(); this.positionDirty = false; }
     if (this.colorDirty) { this.updatePlanetColors(); this.colorDirty = false; }
@@ -181,11 +251,83 @@ export class LaboratoryRenderer {
   private pickAt(clientX: number, clientY: number, hover: boolean): void {
     const rect = this.renderer.domElement.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
-    this.pointer.set(((clientX-rect.left)/rect.width)*2-1, -((clientY-rect.top)/rect.height)*2+1);
-    this.raycaster.setFromCamera(this.pointer,this.camera); const hit = this.raycaster.intersectObject(this.mesh)[0]; if (!hit?.uv) return;
+    const pointerX = clientX - rect.left;
+    const pointerY = clientY - rect.top;
+    this.pointer.set((pointerX / rect.width) * 2 - 1, -(pointerY / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects(this.pickTargets, true);
+    const hit = hits[0];
+    const directId = hit ? this.celestial.bodyIdFromObject(hit.object) : null;
+    const celestialId = directId ?? this.pickCelestialFallback(pointerX, pointerY, rect.width, rect.height);
+    if (celestialId) {
+      if (hover) this.onCelestialHover?.(celestialId);
+      else this.onCelestialPick?.(celestialId);
+      return;
+    }
+    if (!hit || hit.object !== this.mesh || !hit.uv) return;
     const { index: i } = uvToGridCell(hit.uv.x, hit.uv.y);
     const lat = Math.max(-90, Math.min(90, hit.uv.y*180-90)); const lon=Math.max(-180, Math.min(180, hit.uv.x*360-180));
     if (hover) this.onCellHover?.(i,lat,lon); else this.onCellPick?.(i,lat,lon);
+  }
+
+  private pickCelestialFallback(pointerX: number, pointerY: number, width: number, height: number): string | null {
+    const hitRadius = celestialPickRadiusPx(pointerIsCoarse());
+    const origin = this.camera.position;
+    const projected = this.projectBodies(this.engine.state.tick);
+    const candidates = [];
+    for (const definition of this.celestial.definitions) {
+      if (definition.kind === 'planet') continue;
+      const pose = this.celestial.pose(definition.id);
+      const point = projected[definition.id];
+      if (!pose || !point) continue;
+      this.projectNdc.set(pose.x, pose.y, pose.z).project(this.camera);
+      const screenX = point.x * width;
+      const screenY = point.y * height;
+      candidates.push({
+        id: definition.id,
+        screenX,
+        screenY,
+        depth: Math.hypot(pose.x - origin.x, pose.y - origin.y, pose.z - origin.z),
+        frontmost: point.frontmost,
+        inFrontOfCamera: this.projectNdc.z > -1 && this.projectNdc.z < 1,
+        inViewport: screenX >= -hitRadius && screenX <= width + hitRadius && screenY >= -hitRadius && screenY <= height + hitRadius
+      });
+    }
+    return selectCelestialFallback(pointerX, pointerY, candidates, hitRadius);
+  }
+
+  private followFocus(): void {
+    if (this.focusId === 'primary') return;
+    const pose = this.celestial.pose(this.focusId);
+    if (!pose) return;
+    this.cameraOffset.copy(this.camera.position).sub(this.controls.target);
+    this.controls.target.set(pose.x, pose.y, pose.z);
+    this.camera.position.copy(this.controls.target).add(this.cameraOffset);
+  }
+
+  private projectPoint(x: number, y: number, z: number): { x: number; y: number } {
+    this.projectNdc.set(x, y, z).project(this.camera);
+    return { x: (this.projectNdc.x + 1) / 2, y: (1 - this.projectNdc.y) / 2 };
+  }
+
+  private projectBodies(tick: number): Record<string, { x: number; y: number; visible: boolean; frontmost: boolean }> {
+    const projected: Record<string, { x: number; y: number; visible: boolean; frontmost: boolean }> = {};
+    const origin = this.camera.position;
+    for (const definition of this.celestial.definitions) {
+      if (definition.kind === 'planet') continue;
+      const pose = this.celestial.pose(definition.id, tick);
+      if (!pose) continue;
+      this.projectNdc.set(pose.x, pose.y, pose.z).project(this.camera);
+      const visible = this.projectNdc.z > -1 && this.projectNdc.z < 1 && Math.abs(this.projectNdc.x) <= 1.15 && Math.abs(this.projectNdc.y) <= 1.15;
+      const x = (this.projectNdc.x + 1) / 2;
+      const y = (1 - this.projectNdc.y) / 2;
+      const distance = this.projectDir.set(pose.x - origin.x, pose.y - origin.y, pose.z - origin.z).length();
+      this.raycaster.set(origin, this.projectDir.normalize());
+      const hits = this.raycaster.intersectObjects(this.pickTargets, true);
+      const frontmost = celestialRayIsFrontmost(hits, definition.id, distance, definition.radius, object => this.celestial.bodyIdFromObject(object as THREE.Object3D));
+      projected[definition.id] = { x, y, visible, frontmost };
+    }
+    return projected;
   }
 
   private resize = (): void => { const w=this.container.clientWidth||640,h=this.container.clientHeight||480; this.renderer.setSize(w,h,false); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); };
@@ -200,6 +342,8 @@ export class LaboratoryRenderer {
     this.selectionMarker.geometry.dispose(); (this.selectionMarker.material as THREE.Material).dispose();
     (this.atmosphere.geometry as THREE.BufferGeometry).dispose(); (this.atmosphere.material as THREE.Material).dispose();
     disposeGroup(this.ringGroup); this.ringGroup.clear();
+    this.starfield.dispose(); this.scene.remove(this.starfield.group);
+    this.celestial.dispose(); this.scene.remove(this.celestial.group);
     this.renderer.dispose(); this.renderer.domElement.remove();
   }
 }

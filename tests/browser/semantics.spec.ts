@@ -1,18 +1,24 @@
 import { expect, test } from '@playwright/test';
-import { captureBrowserErrors, diagnostics, openLab, screenshotEvidence } from './helpers';
+import { captureBrowserErrors, clickPlacement, diagnostics, openControlFamily, openLab, screenshotEvidence } from './helpers';
 
 test('browser semantics, accessible naming, keyboard activation, and responsive composition hold', async ({ page }, testInfo) => {
   const errors = captureBrowserErrors(page);
   await openLab(page);
 
-  await expect(page.getByRole('complementary', { name: 'Experiment rack' })).toBeVisible();
-  await expect(page.getByRole('complementary', { name: 'Planetary autopsy inspector' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Laboratory controls' })).toBeVisible();
   await expect(page.getByRole('region', { name: /Interactive planetary viewport/i })).toBeVisible();
+  await openControlFamily(page, 'run');
   await expect(page.getByRole('button', { name: 'PLAY' })).toBeVisible();
+  await openControlFamily(page, 'history');
   await expect(page.getByRole('button', { name: /FORK B/ })).toBeVisible();
   await expect(page.locator('#switchB')).toBeDisabled();
+  await openControlFamily(page, 'view');
   await expect(page.locator('[data-layer="comparison"]')).toBeDisabled();
+  await openControlFamily(page, 'drakken');
+  await expect(page.getByRole('complementary', { name: 'Experiment rack' })).toBeVisible();
   await expect(page.locator('#placement')).toHaveAttribute('aria-pressed', 'true');
+  await openControlFamily(page, 'inspect');
+  await expect(page.getByRole('complementary', { name: 'Planetary autopsy inspector' })).toBeVisible();
 
   const duplicateIds = await page.evaluate(() => {
     const ids = [...document.querySelectorAll<HTMLElement>('[id]')].map(node => node.id);
@@ -30,7 +36,7 @@ test('browser semantics, accessible naming, keyboard activation, and responsive 
   await page.keyboard.press('Enter');
   expect((await diagnostics(page)).processCount).toBe(1);
 
-  await page.locator('#placement').click();
+  await clickPlacement(page);
   await expect(page.locator('#placement')).toHaveAttribute('aria-pressed', 'false');
 
   await page.setViewportSize({ width: 390, height: 844 });

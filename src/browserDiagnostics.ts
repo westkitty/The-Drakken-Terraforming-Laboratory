@@ -28,6 +28,23 @@ export interface BrowserDiagnostics {
     controlsDampingEnabled: boolean;
     gpuRenderer: string;
     gpuVendor: string;
+    starfield: {
+      bands: number;
+      vertices: number;
+      anchors: {
+        near: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+        far: { world: { x: number; y: number; z: number }; projected: { x: number; y: number } };
+      };
+    };
+    camera: { minDistance: number; maxDistance: number; near: number; far: number; distance: number; target: { x: number; y: number; z: number } };
+    celestial: {
+      selectedId: string | null;
+      focusId: string;
+      star: { id: string; x: number; y: number; z: number; radius: number } | null;
+      moon: { id: string; x: number; y: number; z: number; orbitRadius: number; phase: number } | null;
+      minors: { id: string; name: string; x: number; y: number; z: number; orbitRadius: number; phase: number }[];
+      projected: Record<string, { x: number; y: number; visible: boolean; frontmost: boolean }>;
+    };
   };
 }
 
@@ -40,6 +57,7 @@ interface AppInternals {
   simStepMs: number;
   selectedCell: number;
   currentLayer: LayerId;
+  selectedBodyId: string | null;
 }
 
 interface RendererInternals {
@@ -109,7 +127,17 @@ export function installBrowserDiagnostics(app: LaboratoryApp): () => void {
         scene: { objects, meshes, uniqueGeometries: geometries.size, uniqueMaterials: materials.size },
         controlsDampingEnabled: laboratoryRenderer.controls.enableDamping,
         gpuRenderer,
-        gpuVendor
+        gpuVendor,
+        starfield: laboratoryRenderer.starfieldSnapshot(),
+        camera: {
+          ...laboratoryRenderer.cameraRange(),
+          target: {
+            x: laboratoryRenderer.controls.target.x,
+            y: laboratoryRenderer.controls.target.y,
+            z: laboratoryRenderer.controls.target.z
+          }
+        },
+        celestial: laboratoryRenderer.celestialSnapshot()
       }
     };
   };

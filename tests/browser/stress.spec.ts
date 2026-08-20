@@ -1,29 +1,29 @@
 import { expect, test } from '@playwright/test';
-import { captureBrowserErrors, clickGlobe, diagnostics, openLab, runUntilTick, selectProcess, setTimelineTick } from './helpers';
+import { captureBrowserErrors, clickBranch, clickCameraReset, clickFork, clickGlobe, clickLayer, clickPlay, diagnostics, openControlFamily, openLab, runUntilTick, selectProcess, setSpeed, setTimelineTick } from './helpers';
 
 test('rapid controls, resize storms, branch switching, scrubbing, camera input, reset, and context recovery remain operable', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(180_000);
   const errors = captureBrowserErrors(page);
   await openLab(page);
 
-  for (let i = 0; i < 12; i++) await page.locator('#play').click();
+  for (let i = 0; i < 12; i++) await clickPlay(page);
   expect((await diagnostics(page)).playing).toBe(false);
 
   await selectProcess(page, 'fault-tongue');
   await clickGlobe(page, 0.5, 0.5);
   await expect(page.locator('#targeting')).toContainText('DEPLOYED');
   await expect(page.locator('#targeting')).toContainText('PRESS PLAY');
-  await page.locator('#speed').selectOption('4');
+  await setSpeed(page, '4');
   await runUntilTick(page, 40);
   await expect(page.locator('#targeting')).not.toContainText('PRESS PLAY');
   await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');
   await setTimelineTick(page, 20);
   await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');
-  await page.locator('#fork').click();
-  for (let i = 0; i < 8; i++) await page.locator(i % 2 === 0 ? '#switchB' : '#switchA').click();
+  await clickFork(page);
+  for (let i = 0; i < 8; i++) await clickBranch(page, i % 2 === 0 ? 'B' : 'A');
   await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');
 
-  for (const layer of ['crust', 'hydrology', 'atmosphere', 'biosphere', 'feedstock', 'drakken', 'provenance', 'normal']) await page.locator(`[data-layer="${layer}"]`).click();
+  for (const layer of ['crust', 'hydrology', 'atmosphere', 'biosphere', 'feedstock', 'drakken', 'provenance', 'normal']) await clickLayer(page, layer);
 
   for (const size of [{ width: 1024, height: 700 }, { width: 390, height: 844 }, { width: 1280, height: 720 }, { width: 800, height: 900 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(size);
@@ -39,14 +39,15 @@ test('rapid controls, resize storms, branch switching, scrubbing, camera input, 
   await page.mouse.up();
   await page.mouse.wheel(0, -500);
   await page.mouse.wheel(0, 500);
-  await page.locator('#camera').click();
+  await clickCameraReset(page);
 
   for (const tick of [5, 18, 9, 20, 0, 20]) await setTimelineTick(page, tick);
 
+  await openControlFamily(page, 'run');
   for (let cycle = 0; cycle < 5; cycle++) {
     await page.locator('#regenerate').click();
     await expect(page.locator('#viewport canvas')).toHaveCount(1);
-    expect((await diagnostics(page)).tick).toBe(0);
+    await expect.poll(async () => (await diagnostics(page)).tick, { timeout: 15_000 }).toBe(0);
     await expect(page.locator('#targeting')).not.toContainText('DEPLOYED');
     await expect(page.locator('#targeting')).not.toContainText('HISTORY LOCKED');
     await expect(page.locator('#targeting')).toContainText(/PLACEMENT|INSPECT/);

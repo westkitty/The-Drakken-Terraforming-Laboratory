@@ -7,12 +7,12 @@
   "project_name": "The Drakken Terraforming Laboratory",
   "project_root": "/mnt/data/The-Drakken-Terraforming-Laboratory",
   "artifact_path": null,
-  "state_revision": 6,
-  "last_updated": "2026-08-19T10:20:00-04:00",
+  "state_revision": 11,
+  "last_updated": "2026-08-20T07:15:00-04:00",
   "current_baseline": {
-    "identity": "final pre-test defect-sweep release b353be7d78bf8c1a3e6d41ec063cac2c46a7838e on main",
+    "identity": "planet-first-space-system starfield envelope and screen-space picking over 6127ccf",
     "state": "partially-verified",
-    "last_verified": "2026-08-19T10:20:00-04:00"
+    "last_verified": "2026-08-20T07:15:00-04:00"
   },
   "scope_boundaries": [
     "Initial browser-based deterministic Three.js Drakken terraforming laboratory prototype"
@@ -35,15 +35,13 @@
 
 ## 2. Current Baseline
 
-- **Application source:** final pre-test defect-sweep PR #4 squash-merged to `main` as `b353be7d78bf8c1a3e6d41ec063cac2c46a7838e`.
-- **Dependency reproducibility:** committed npm lockfile; clean `npm ci` verified in GitHub Actions.
-- **Dependency-backed validation:** strict TypeScript, 13 Vitest files / 46 tests, Vite `7.3.5` production build, runtime dependency gate, static safeguards, and build artifact export pass on final run `32262340227`.
-- **Authoritative simulation:** current-generator dependency-backed stress, conservation, determinism, history, and full-pipeline regression suites pass; the older 64-seed direct stress remains historical evidence because seeded world topology changed in this sweep.
-- **Three.js architecture:** static health audit remains 100/100 with 0 findings.
-- **Browser path:** final candidate exercised in Google Chrome `151.0.7922.108`; 10/10 Playwright tests pass, including real WebGL startup, first-look journeys, keyboard/responsive checks, pathological controls, repeated resets, explicit targeting-feedback ownership, and context loss/restoration.
-- **Browser evidence:** artifact `9368894009` (`sha256:829efd8a84c15662dea28a22fa86b6c41f5c7cdae7de9dfb4d74643f0bc448c3`) contains final Playwright results, performance smoke data, and eight state screenshots.
-- **Runtime lifecycle:** CI software-renderer evidence verifies reset-cycle resource stability and context recovery; target-hardware frame-time/thermal performance remains unverified.
-- **Overall state:** PARTIAL / partially verified because human visual judgment, representative physical touch/coarse-pointer feel, target-hardware performance, sustained thermals, and long-session behavior remain outside current evidence.
+- **Application source:** feature branch `planet-first-space-system` after the starfield-envelope and screen-space picking correction. PlanetState remains at the origin.
+- **Presentation:** default full-viewport planet; 12-dot launcher closed; first-run guide lives inside RUN; system star visible; background starfield starts at `STARFIELD_MIN_RADIUS` 180.8825, outside `INTERACTIVE_SYSTEM_ENVELOPE` 132.8825.
+- **Celestial environment:** tick-driven Primary Moon and two outer bodies; world-space pick proxies plus 16 px fine / 24 px coarse screen-space fallback; occluded bodies are not eligible; planet deployment only from a genuine planet hit.
+- **Dependency-backed validation:** `npm ci` PASS; typecheck PASS; 16 Vitest files / 63 tests PASS with `--testTimeout=20000`; Vite 7.3.5 build PASS.
+- **Browser path:** local Chrome; one uninterrupted `npm run test:browser -- --workers=1` run, 18 / 18 Playwright tests PASS in 2.1 minutes. PLAY uses ordinary actionability (no `force: true`). Outer Body 1 selected with a 14 CSS-pixel off-center click without increasing processCount.
+- **Runtime lifecycle:** 3 regenerates restore unique geometries/materials. Local Metal frame times are not SwiftShader/target-hardware proof.
+- **Overall state:** PARTIAL / partially verified. Not merged to `main`.
 
 ## 3. Artifact Contract
 
@@ -182,7 +180,7 @@
 
 - **Allowed to change:** v1 repository source/docs/continuity files required by the build contract.
 - **Protected:** deterministic causality, conservation, canon/model boundary, branch/history truth, non-destructive Git history, no external runtime assets/networking, one application-owned frame loop.
-- **Mandatory checks on simulation changes3��� clean install/typecheck, full tests, determinism/conservation/history fixtures, static safeguards.
+- **Mandatory checks on simulation changes:** clean install/typecheck, full tests, determinism/conservation/history fixtures, static safeguards.
 - **Mandatory checks on renderer/UI/browser changes:** production build, browser first-look/semantics/stress path, and relevant lifecycle evidence.
 - **Current repair class:** final pre-test defect sweep merged; no unresolved confirmed causal-core/history/build/topology/hash/primary-Chrome-journey defect remains in the inspected scope.
 - **Completion boundary:** automation cannot replace the user's subjective first look or representative target-hardware performance/thermal evidence.
@@ -225,3 +223,40 @@
 - **Evidence boundary corrected:** the older 64-seed direct stress numbers are retained as historical pre-periodic-generator evidence; current-generator proof is the dependency-backed stress/full-pipeline suite on run `32262340227`.
 - **Deliberate non-change:** the 128 x 64 pole-row representation was not redesigned; doing that correctly would change the simulation model rather than repair a bounded pre-test defect.
 - **Completion state:** PARTIAL / partially verified only for subjective user judgment and representative physical-device/target-hardware performance, thermals, and long-session behavior.
+
+### Revision 7 — 2026-08-19T23:42:00-04:00
+
+- **Branch:** `planet-first-space-system` from current `main` `77bb47b320d22514448fefe85946ff43aec37ee2`. Not merged.
+- **Presentation:** planet-first full-viewport scene; 12-dot launcher closed by default; RUN/DRAKKEN/VIEW/HISTORY/INSPECT float over the canvas; targeting ownership rules preserved.
+- **Starfield:** seeded world-space Three.js points, three depth bands, one-time geometry, explicit dispose, no CSS/remote assets/`Math.random()`/second loop.
+- **Local validation:** `npm ci` PASS; typecheck PASS; 14/14 Vitest files, 49/49 tests PASS; Vite 7.3.5 build PASS; Chrome 151 Playwright 12/12 PASS (`--workers=1`).
+- **Deliberate non-change:** simulation model, conservation, rewind/branching, process set, and lockfile.
+
+### Revision 8 — 2026-08-20T00:12:00-04:00
+
+- **Branch:** `planet-first-space-system` Phase 2 celestial environment. Not merged.
+- **Added:** tick-driven celestial model/helper; system star; Primary Moon; two outer bodies; expanded camera/starfield; body picking that cannot deploy; FOCUS PLANET / SYSTEM VIEW / FOCUS SELECTED.
+- **Local validation:** typecheck PASS; 15 files / 54 tests PASS; Vite 7.3.5 build PASS; Chrome Playwright 15/15 PASS (`--workers=1`).
+- **Deliberate non-change:** PlanetState stays at the origin; no second clock; no new npm dependencies.
+
+### Revision 9 — 2026-08-20T01:22:00-04:00
+
+- **Branch:** `planet-first-space-system` final integration/QA. Not merged.
+- **Bounded repair:** starfield depth write; skip unchanged-tick orbit updates; cache pickables; place the system star in the default/system frustum; SYSTEM VIEW camera `(6, 4, 24)`.
+- **Evidence:** 55 unit tests; 16 Chrome Playwright tests; QA screenshots qa-01 through qa-07; regenerate unique geometry 12/12.
+- **Limitation:** full 16-test Playwright job was run in split reruns after overlay/play click timeouts on a loaded machine; SwiftShader/target-hardware FPS remains unverified.
+
+### Revision 10 — 2026-08-20T05:07:00-04:00
+
+- **Branch:** `planet-first-space-system` targeted interaction/QA correction. Not merged.
+- **Repairs:** canvas/overlay stacking so PLAY is ordinarily clickable; first-run guide moved into RUN; `qa-01` is the literal first frame; larger invisible celestial pick proxies with depth test; off-center pick proof; near/far starfield parallax under HOME→SYSTEM dolly; OPERATIONAL_STATE mandatory-checks line restored.
+- **Evidence:** `npm ci` PASS; typecheck PASS; Vitest 15 files / 55 tests PASS; Vite 7.3.5 build PASS (`index-CAEJZViE.js` 616.76 kB); one uninterrupted `npm run test:browser -- --workers=1` run, 18 / 18 PASS in 4.7 minutes on local Chrome 151; unique geometries 16/16 after 3 regenerates; heap delta about +418 kB; latest simulation step about 1.78 ms.
+- **Deliberate non-change:** simulation model, conservation, rewind/branching, process set, lockfile, and no merge to `main`.
+
+### Revision 11 — 2026-08-20T07:15:00-04:00
+
+- **Branch:** `planet-first-space-system` starfield envelope plus screen-space celestial picking. Not merged.
+- **Starfield:** bands near 180.88–270.88, mid 340.88–520.88, far 620.88–980.88; `CAMERA_FAR` 1600; orbital radii and system-star distance unchanged.
+- **Picking:** `CELESTIAL_PICK_RADIUS_FINE_PX` 16; `CELESTIAL_PICK_RADIUS_COARSE_PX` 24; fallback never deploys; occluded/not-frontmost bodies rejected by the shared helper.
+- **Evidence:** typecheck PASS; Vitest 16 files / 63 tests PASS; Vite 7.3.5 build PASS (`index-BZmA8JOA.js` 618.63 kB); one uninterrupted `npm run test:browser -- --workers=1` run, 18 / 18 PASS in 2.1 minutes; 14 px off-center Outer Body 1 select without process increment.
+- **Deliberate non-change:** no merge to `main`.

@@ -836,3 +836,206 @@ State After Completion:
 
 Next Step / Handoff:
 - The user should now perform the actual first look using `docs/FIRST_LOOK.md`. Any next repair should be driven by visible/user-experience evidence from that test. If performance becomes a concern, run `docs/PERFORMANCE_BENCHMARK.md` on representative target hardware rather than inferring from SwiftShader CI.
+
+### Entry 13 - Planet-first viewport and 12-dot control launcher
+Summary:
+- Recessed the laboratory dashboard behind a compact 12-dot launcher so the default view is a full-viewport planet and seeded world-space starfield.
+- Left the simulation model, conservation, rewind/branching, and process set unchanged.
+
+Reason / Intent:
+- Make the planet the primary instrument and keep controls as overlay instrumentation rather than a permanent dashboard around the globe.
+
+Files Changed:
+- `src/render/Starfield.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/ui/LaboratoryApp.ts`
+- `src/styles.css`
+- `src/browserDiagnostics.ts`
+- `src/tests/starfield.test.ts`
+- `tests/browser/helpers.ts`
+- `tests/browser/planet-first.spec.ts`
+- `tests/browser/first-look.spec.ts`
+- `tests/browser/semantics.spec.ts`
+- `tests/browser/stress.spec.ts`
+- `tests/browser/performance.spec.ts`
+- `docs/FIRST_LOOK.md`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 14 files / 49 tests PASS
+Vite 7.3.5 production build: PASS
+Local Chrome 151 Playwright: 12 / 12 PASS (--workers=1)
+```
+
+Decisions:
+- Keep existing control IDs and targeting-ownership rules.
+- Generate star geometry once per renderer/seed from project-local `SeededRandom`.
+- Do not merge this branch to `main` in this phase.
+
+State After Completion:
+- Feature exists on `planet-first-space-system` only.
+- Overall project remains PARTIAL / partially verified pending human first look and representative hardware performance.
+
+### Entry 14 - Interactive celestial system and deep zoom
+Summary:
+- Expanded the Phase-1 planet-first viewport into a small seeded celestial environment: a visible system star, Primary Moon, and two sparse outer bodies, with tick-driven orbits and body picking.
+- Raised camera max distance and far plane while keeping the default framing on the terraformable planet at the origin.
+
+Reason / Intent:
+- Let the user zoom out into a real system-scale view without turning the laboratory into a second astrophysical simulator or moving PlanetState off the origin.
+
+Files Changed:
+- `src/render/celestialSystem.ts`
+- `src/render/CelestialEnvironment.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/render/Starfield.ts`
+- `src/ui/LaboratoryApp.ts`
+- `src/styles.css`
+- `src/browserDiagnostics.ts`
+- `src/tests/celestialSystem.test.ts`
+- `src/tests/starfield.test.ts`
+- `tests/browser/helpers.ts`
+- `tests/browser/celestial.spec.ts`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+typecheck: PASS
+Vitest: 15 files / 54 tests PASS
+Vite 7.3.5 production build: PASS
+Local Chrome 151 Playwright: 15 / 15 PASS (--workers=1)
+Regenerate unique geometry/material counts restored
+```
+
+Decisions:
+- Celestial orbits use simulation tick only, never wall-clock time.
+- Celestial clicks select; only the primary planet remains a Drakken deployment surface.
+- Neutral names: Primary Moon, Outer Body 1, Outer Body 2.
+- Do not merge this branch to `main` in this phase.
+
+### Entry 15 - Final planet-first integration QA
+Summary:
+- Proved Phases 1 and 2 against planet-first, system-scale, interaction, 12-dot, and lifecycle oracles.
+- One bounded repair: starfield writes depth so stars do not draw through the planet; celestial orbits skip unchanged ticks; pickables are cached; the system star and SYSTEM VIEW camera were adjusted so the star is on-screen in default and system frames.
+
+Reason / Intent:
+- Close the redesign on evidence rather than adding another feature phase.
+
+Files Changed:
+- `src/render/Starfield.ts`
+- `src/render/CelestialEnvironment.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/render/celestialSystem.ts`
+- `src/tests/celestialSystem.test.ts`
+- `tests/browser/final-qa.spec.ts`
+- `tests/browser/celestial.spec.ts`
+- `tests/browser/first-look.spec.ts`
+- `tests/browser/helpers.ts`
+- `docs/FIRST_LOOK.md`
+- `docs/VALIDATION.md`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 15 files / 55 tests PASS
+Vite 7.3.5 production build: PASS
+Chrome Playwright: 16 tests PASS (--workers=1, split reruns)
+QA screenshots: qa-01 .. qa-07
+Regenerate unique geometries: 12 baseline / 12 settled
+```
+
+Decisions:
+- Do not restyle beyond the bounded visibility/lifecycle repairs.
+- Do not merge to `main`.
+
+### Entry 16 - Correct planet-first interaction and QA evidence
+Summary:
+- Targeted correction on `planet-first-space-system`: overlay stacking so PLAY is ordinarily clickable, first-run guide moved into RUN, human-scale celestial pick proxies, differential starfield parallax, and one uninterrupted 18-test Chrome Playwright run.
+
+Reason / Intent:
+- Prior integration QA left overlay clickability, first-frame screenshot purity, celestial picking, and a single full browser-suite run unresolved. This pass repairs those interactions and records only the single-run evidence.
+
+Files Changed:
+- `src/ui/LaboratoryApp.ts`
+- `src/styles.css`
+- `src/render/CelestialEnvironment.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/render/Starfield.ts`
+- `src/browserDiagnostics.ts`
+- `tests/browser/helpers.ts`
+- `tests/browser/celestial.spec.ts`
+- `tests/browser/final-qa.spec.ts`
+- `tests/browser/first-look.spec.ts`
+- `tests/browser/planet-first.spec.ts`
+- `docs/FIRST_LOOK.md`
+- `docs/VALIDATION.md`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 15 files / 55 tests PASS (`npx vitest run src/tests --testTimeout=20000`)
+Vite 7.3.5 production build: PASS
+npm run test:browser -- --workers=1: 18 / 18 PASS in 4.7 minutes
+Local Chrome: 151.0.7922.138
+QA screenshots: qa-01 .. qa-07 from that same run
+Regenerate unique geometries/materials: 16 / 16
+Heap delta after 3 regenerates: about +418 kB
+```
+
+Decisions:
+- Keep PLAY on ordinary Playwright actionability; do not restore `force: true`.
+- First-run guidance stays inside RUN so the default screenshot is the literal first frame.
+- Invisible pick proxies use depth testing so occluded bodies cannot be selected through the planet.
+- Do not merge this branch to `main`.
+
+### Entry 17 - Keep starfield outside system and harden body picking
+Summary:
+- Moved the background starfield entirely outside the interactive celestial/camera envelope and added a 16/24 CSS-pixel screen-space celestial pick fallback so small bodies remain selectable at SYSTEM VIEW without deploying.
+
+Reason / Intent:
+- Near stars previously occupied the same radii as moons, outer bodies, and camera travel. Off-center clicks on Outer Body 1 missed because world-space proxies shrank in screen space with distance.
+
+Files Changed:
+- `src/render/celestialSystem.ts`
+- `src/render/Starfield.ts`
+- `src/render/celestialPick.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/tests/starfield.test.ts`
+- `src/tests/celestialPick.test.ts`
+- `tests/browser/helpers.ts`
+- `tests/browser/celestial.spec.ts`
+- `tests/browser/planet-first.spec.ts`
+- `docs/VALIDATION.md`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 16 files / 63 tests PASS (`npx vitest run src/tests --testTimeout=20000`)
+Vite 7.3.5 production build: PASS
+npm run test:browser -- --workers=1: 18 / 18 PASS in 2.1 minutes
+STARFIELD_MIN_RADIUS 180.8825 outside envelope 132.8825
+CAMERA_FAR 1600
+Pick radii: 16 px fine / 24 px coarse
+Off-center browser click: 14 CSS pixels
+```
+
+Decisions:
+- Do not change orbital radii or system-star distance to accommodate the starfield.
+- Occlusion is proven by the shared pick helper and a deterministic planet-first ray, not by searching live orbits.
+- Do not merge this branch to `main`.
+
+

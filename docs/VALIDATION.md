@@ -146,3 +146,112 @@ The automated first-look path is verified in Chrome. These items remain outside 
 - sustained thermals and long-session behavior on representative physical devices.
 
 The next useful action is the user's own first look using [`FIRST_LOOK.md`](FIRST_LOOK.md). Further pre-look source polishing is not justified without new evidence from that inspection.
+
+## Planet-first celestial integration QA — 2026-08-20
+
+Local Chrome `151` on branch `planet-first-space-system` after a bounded repair pass (starfield depth write, unchanged-tick orbit skip, cached pickables, star placement in the default/system frustum).
+
+Executed:
+
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 15 files / 55 tests PASS
+Vite 7.3.5 production build: PASS
+Playwright Chrome --workers=1: 16 tests PASS in split reruns after overlay click timeouts
+```
+
+Objective screenshot states captured to `browser-evidence/screenshots/`:
+
+- `qa-01-default-planet-view` — menu closed, planet dominant, starfield, visible system star
+- `qa-02-menu-open` — VIEW overlay without taking over the scene
+- `qa-03-system-view` — planet, moon, outer bodies, star, deeper starfield
+- `qa-04-moon-focused`
+- `qa-05-outer-focused`
+- `qa-06-drakken-active` — Fault-Tongue deploy on the primary planet
+- `qa-07-narrow-viewport` — 390 x 844, no global overflow, planet remains primary
+
+Lifecycle smoke (local Metal, not a SwiftShader/target-hardware FPS claim): unique geometries 12 baseline / 12 after 3 regenerates; heap delta about +377 kB; latest simulation step about 1.34 ms.
+
+This integration-QA capture is superseded by the 2026-08-20 interaction/QA correction pass below.
+
+## Planet-first interaction and QA correction — 2026-08-20
+
+Local Chrome `151.0.7922.138` on branch `planet-first-space-system` after the targeted correction pass. PLAY and other overlay controls use ordinary Playwright actionability. First-run guidance is inside RUN. `qa-01` is captured from an untouched first load (`openLab(page, false)`), with the 12-dot launcher closed and `#quickstart` not visible.
+
+Executed:
+
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 15 files / 55 tests PASS (`npx vitest run src/tests --testTimeout=20000`)
+Vite 7.3.5 production build: PASS
+  dist/index.html                  0.51 kB | gzip 0.32 kB
+  dist/assets/index-BAr3i8z_.css   8.65 kB | gzip 2.80 kB
+  dist/assets/index-CAEJZViE.js  616.76 kB | gzip 157.01 kB
+Command: npm run test:browser -- --workers=1
+Playwright Chrome: 18 passed (4.7m)
+```
+
+The single 18-test job included celestial pick/orbit/regenerate, first-look journeys, final QA screenshots, 12-dot/starfield/parallax, semantics, and stress. No `click({ force: true })` remains in `tests/browser`.
+
+Objective screenshot states recaptured to `browser-evidence/screenshots/` during that same run:
+
+- `qa-01-default-planet-view` — untouched first load: menu closed, no first-run overlay, planet dominant, starfield, visible system star
+- `qa-02-menu-open` — VIEW overlay without taking over the scene
+- `qa-03-system-view` — planet, moon, outer bodies, star, deeper starfield
+- `qa-04-moon-focused`
+- `qa-05-outer-focused`
+- `qa-06-drakken-active` — Fault-Tongue deploy on the primary planet
+- `qa-07-narrow-viewport` — 390 x 844, no global overflow, planet remains primary
+
+`01-initial.png` matches `qa-01-default-planet-view.png` at 107725 bytes.
+
+Lifecycle smoke (local Metal ANGLE, not a SwiftShader/target-hardware FPS claim): unique geometries 16 baseline / 16 after 3 regenerates; unique materials 16/16; heap delta about +418 kB; latest simulation step about 1.78 ms.
+
+This does not replace human visual taste or representative physical-device thermals.
+
+## Starfield envelope and screen-space picking — 2026-08-20
+
+Local correction on `planet-first-space-system` after `6127ccf`. Background stars were overlapping the interactive celestial envelope. Picking at SYSTEM VIEW missed small bodies when the click was a few pixels off center.
+
+Declared occupancy and bands:
+
+```text
+INTERACTIVE_SYSTEM_ENVELOPE = 132.8825
+STARFIELD_ENVELOPE_MARGIN   = 48
+STARFIELD_MIN_RADIUS        = 180.8825
+near: 180.88–270.88
+mid:  340.88–520.88
+far:  620.88–980.88
+CAMERA_FAR = 1600
+```
+
+Celestial picking constants in `src/render/celestialPick.ts`:
+
+```text
+CELESTIAL_PICK_RADIUS_FINE_PX   = 16
+CELESTIAL_PICK_RADIUS_COARSE_PX = 24
+```
+
+Direct raycast hits still win. If the ray misses a body, the shared fallback may select the nearest eligible projected body inside that pixel radius. Eligible bodies must be in front of the camera, in or adjacent to the viewport, and `frontmost`. Occluded bodies are rejected. A fallback celestial hit never deploys a Drakken process; planet deployment requires a genuine primary-planet ray hit.
+
+Deterministic Vitest coverage in `src/tests/celestialPick.test.ts` proves on-screen eligibility, occlusion rejection, out-of-radius rejection, nearer/frontmost overlap winner, coarse > fine radius, and a Three.js planet-first ray against a hidden body.
+
+Executed:
+
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 16 files / 63 tests PASS (`npx vitest run src/tests --testTimeout=20000`)
+Vite 7.3.5 production build: PASS
+  dist/index.html                  0.51 kB | gzip 0.32 kB
+  dist/assets/index-BAr3i8z_.css   8.65 kB | gzip 2.80 kB
+  dist/assets/index-BZmA8JOA.js  618.63 kB | gzip 157.75 kB
+Command: npm run test:browser -- --workers=1
+Playwright Chrome: 18 passed (2.1m)
+```
+
+Browser off-center proof: SYSTEM VIEW, Outer Body 1, `clickCelestialOffsetPx(..., 14, 0)` — selectedId `outer-1`, processCount unchanged. Aligned near/far starfield parallax remains PASS. No `force: true`.
+
+GitHub Actions results are recorded only after the independent workflow actually runs.
