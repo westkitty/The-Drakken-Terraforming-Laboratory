@@ -836,3 +836,46 @@ State After Completion:
 
 Next Step / Handoff:
 - The user should now perform the actual first look using `docs/FIRST_LOOK.md`. Any next repair should be driven by visible/user-experience evidence from that test. If performance becomes a concern, run `docs/PERFORMANCE_BENCHMARK.md` on representative target hardware rather than inferring from SwiftShader CI.
+
+### Entry 13 - Planet-first viewport and 12-dot control launcher
+Summary:
+- Recessed the laboratory dashboard behind a compact 12-dot launcher so the default view is a full-viewport planet and seeded world-space starfield.
+- Left the simulation model, conservation, rewind/branching, and process set unchanged.
+
+Reason / Intent:
+- Make the planet the primary instrument and keep controls as overlay instrumentation rather than a permanent dashboard around the globe.
+
+Files Changed:
+- `src/render/Starfield.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/ui/LaboratoryApp.ts`
+- `src/styles.css`
+- `src/browserDiagnostics.ts`
+- `src/tests/starfield.test.ts`
+- `tests/browser/helpers.ts`
+- `tests/browser/planet-first.spec.ts`
+- `tests/browser/first-look.spec.ts`
+- `tests/browser/semantics.spec.ts`
+- `tests/browser/stress.spec.ts`
+- `tests/browser/performance.spec.ts`
+- `docs/FIRST_LOOK.md`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 14 files / 49 tests PASS
+Vite 7.3.5 production build: PASS
+Local Chrome 151 Playwright: 12 / 12 PASS (--workers=1)
+```
+
+Decisions:
+- Keep existing control IDs and targeting-ownership rules.
+- Generate star geometry once per renderer/seed from project-local `SeededRandom`.
+- Do not merge this branch to `main` in this phase.
+
+State After Completion:
+- Feature exists on `planet-first-space-system` only.
+- Overall project remains PARTIAL / partially verified pending human first look and representative hardware performance.

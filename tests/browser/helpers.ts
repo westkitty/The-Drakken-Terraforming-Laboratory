@@ -26,7 +26,24 @@ export interface BrowserDiagnostics {
     controlsDampingEnabled: boolean;
     gpuRenderer: string;
     gpuVendor: string;
+    starfield: { bands: number; vertices: number };
   };
+}
+
+export type ControlFamily = 'run' | 'drakken' | 'view' | 'history' | 'inspect';
+
+export async function openControlFamily(page: Page, family: ControlFamily): Promise<void> {
+  const launcher = page.locator('#lab-controls-launcher');
+  if ((await launcher.getAttribute('aria-expanded')) !== 'true') await launcher.click();
+  const tab = page.locator(`[data-family="${family}"]`);
+  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
+  await expect(page.locator(`#family-${family}`)).toBeVisible();
+}
+
+export async function closeControls(page: Page): Promise<void> {
+  const launcher = page.locator('#lab-controls-launcher');
+  if ((await launcher.getAttribute('aria-expanded')) === 'true') await launcher.click();
+  await expect(page.locator('#lab-controls-menu')).toBeHidden();
 }
 
 export function captureBrowserErrors(page: Page): string[] {
@@ -75,10 +92,12 @@ export async function clickGlobe(page: Page, xRatio = 0.5, yRatio = 0.5): Promis
 }
 
 export async function selectProcess(page: Page, id: 'fault-tongue' | 'cloudmaw' | 'gorevault' | 'ringthroat'): Promise<void> {
+  await openControlFamily(page, 'drakken');
   await page.locator(`[data-process="${id}"]`).click();
 }
 
 export async function setRange(page: Page, id: 'intensity' | 'radius', value: number): Promise<void> {
+  await openControlFamily(page, 'drakken');
   await page.locator(`#${id}`).evaluate((node, nextValue) => {
     const input = node as HTMLInputElement;
     input.value = String(nextValue);
@@ -87,12 +106,14 @@ export async function setRange(page: Page, id: 'intensity' | 'radius', value: nu
 }
 
 export async function runUntilTick(page: Page, tick: number): Promise<void> {
+  await openControlFamily(page, 'run');
   if ((await diagnostics(page)).playing === false) await page.locator('#play').click();
   await expect.poll(async () => (await diagnostics(page)).tick, { timeout: 20_000 }).toBeGreaterThanOrEqual(tick);
   if ((await diagnostics(page)).playing) await page.locator('#play').click();
 }
 
 export async function ledgerValue(page: Page, label: string): Promise<number> {
+  await openControlFamily(page, 'inspect');
   const row = page.locator('#ledger span').filter({ hasText: label }).first();
   await expect(row).toBeVisible();
   const value = await row.locator('b').textContent();
@@ -101,12 +122,53 @@ export async function ledgerValue(page: Page, label: string): Promise<number> {
 }
 
 export async function setTimelineTick(page: Page, tick: number): Promise<void> {
+  await openControlFamily(page, 'history');
   await page.locator('#timeline').evaluate((node, nextTick) => {
     const input = node as HTMLInputElement;
     input.value = String(nextTick);
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }, tick);
   await expect.poll(async () => (await diagnostics(page)).tick).toBe(tick);
+}
+
+export async function clickPlay(page: Page): Promise<void> {
+  await openControlFamily(page, 'run');
+  await page.locator('#play').click();
+}
+
+export async function setSpeed(page: Page, value: string): Promise<void> {
+  await openControlFamily(page, 'run');
+  await page.locator('#speed').selectOption(value);
+}
+
+export async function clickLayer(page: Page, layer: string): Promise<void> {
+  await openControlFamily(page, 'view');
+  await page.locator(`[data-layer="${layer}"]`).click();
+}
+
+export async function clickPlacement(page: Page): Promise<void> {
+  await openControlFamily(page, 'drakken');
+  await page.locator('#placement').click();
+}
+
+export async function clickFork(page: Page): Promise<void> {
+  await openControlFamily(page, 'history');
+  await page.locator('#fork').click();
+}
+
+export async function clickBranch(page: Page, id: 'A' | 'B'): Promise<void> {
+  await openControlFamily(page, 'history');
+  await page.locator(`#switch${id}`).click();
+}
+
+export async function clickCameraReset(page: Page): Promise<void> {
+  await openControlFamily(page, 'view');
+  await page.locator('#camera').click();
+}
+
+export async function clickRegenerate(page: Page): Promise<void> {
+  await openControlFamily(page, 'run');
+  await page.locator('#regenerate').click();
 }
 
 export async function screenshotEvidence(page: Page, name: string, testInfo: TestInfo): Promise<void> {

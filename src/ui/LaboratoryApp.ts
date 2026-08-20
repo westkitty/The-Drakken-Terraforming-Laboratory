@@ -10,6 +10,8 @@ import { DEFAULT_PLANET_SEED, parsePlanetSeed } from './seedInput';
 const BASE_TICKS_PER_SECOND = 8;
 const MAX_CATCH_UP_STEPS = 24;
 const LAYERS: LayerId[] = ['normal', 'crust', 'hydrology', 'atmosphere', 'biosphere', 'feedstock', 'drakken', 'provenance', 'comparison'];
+const CONTROL_FAMILIES = ['run', 'drakken', 'view', 'history', 'inspect'] as const;
+type ControlFamily = (typeof CONTROL_FAMILIES)[number];
 
 export class LaboratoryApp {
   private engine = new SimulationEngine();
@@ -39,6 +41,8 @@ export class LaboratoryApp {
   private eventsRenderKey = '';
   private quickStartVisible = true;
   private targetingOverride = false;
+  private controlsOpen = false;
+  private activeFamily: ControlFamily | null = null;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -54,66 +58,85 @@ export class LaboratoryApp {
   private build(): void {
     this.root.innerHTML = `
       <main class="lab-shell">
-        <header class="topbar">
-          <div class="titleblock">
-            <p class="eyebrow">DRAKKEN TERRAFORMING LABORATORY</p>
-            <h1>Planetary Causality Instrument</h1>
-          </div>
-          <div class="statusline" id="statusline" aria-label="Simulation status"></div>
-        </header>
-
-        <aside class="panel rack" aria-label="Experiment rack">
-          <div class="panel-heading">
-            <div><p class="section-kicker">01 · CONFIGURE</p><h2>EXPERIMENT RACK</h2></div>
-            <span class="mode-chip" id="modechip">PLACEMENT</span>
-          </div>
-          <label>PLANET SEED <input id="seed" type="number" value="${DEFAULT_PLANET_SEED}" /></label>
-          <button id="regenerate" class="wide-control">REGENERATE / RESET</button>
-          <div class="process-grid">
-            ${PROCESS_ORDER.map((id, n) => `
-              <button class="process-card ${n === 0 ? 'selected' : ''}" data-process="${id}" aria-pressed="${n === 0}">
-                <strong>${DRAKKEN_PROCESS_REGISTRY[id].displayName}</strong>
-                <span><b>CANON FUNCTION</b>${DRAKKEN_PROCESS_REGISTRY[id].canonFunction}</span>
-                <span><b>LAB MODEL</b>${DRAKKEN_PROCESS_REGISTRY[id].labModel}</span>
-              </button>`).join('')}
-          </div>
-          <label>INTENSITY <input id="intensity" type="range" min="0.1" max="1" value="0.65" step="0.05"><output id="intensityOut">0.65</output></label>
-          <label>INFLUENCE RADIUS <input id="radius" type="range" min="4" max="40" value="18" step="1"><output id="radiusOut">18°</output></label>
-          <button id="placement" class="active wide-control" aria-pressed="true">PLACEMENT ARMED</button>
-          <div><h3>DEPLOYED INSTANCES</h3><div id="instances" class="dense-list"></div></div>
-        </aside>
-
         <section class="viewport-wrap" aria-label="Planet visualization">
           <div id="viewport" class="viewport" role="region" tabindex="0" aria-label="Interactive planetary viewport. Arrow keys move the selected cell; Enter or Space activates the selected cell." aria-describedby="targeting"></div>
+          <button id="lab-controls-launcher" class="dot-launcher" type="button" aria-label="Laboratory controls" aria-expanded="false" aria-controls="lab-controls-menu">
+            <span class="dot-grid" aria-hidden="true">${'<span class="dot"></span>'.repeat(12)}</span>
+          </button>
           <div id="targeting" class="targeting" aria-live="polite">PLACEMENT · FAULT-TONGUE · TARGETING READY</div>
+          <output id="tickout" class="tick-chip">TICK 0</output>
           <section id="quickstart" class="quickstart" aria-label="First run guide">
             <div><p class="section-kicker">FIRST RUN</p><strong>Make one cause visible.</strong></div>
-            <ol><li>Choose a Drakken process.</li><li>Click the planet to deploy it.</li><li>Press PLAY, then rewind or fork B.</li></ol>
+            <ol><li>Open the 12-dot controls.</li><li>Choose a Drakken process.</li><li>Click the planet, press PLAY, then rewind or fork B.</li></ol>
             <button id="quickstartDismiss" type="button">DISMISS</button>
           </section>
           <div class="layerlegend" id="layerlegend" aria-live="polite"></div>
-          <div class="layerbar" id="layerbar" aria-label="Planet inspection layers"></div>
-        </section>
 
-        <aside class="panel inspector" aria-label="Planetary autopsy inspector">
-          <div class="panel-heading"><div><p class="section-kicker">02 · INSPECT</p><h2>PLANETARY AUTOPSY</h2></div></div>
-          <div id="inspector"></div>
-          <h3>MATERIAL LEDGER</h3><div id="ledger" class="metric-grid"></div>
-          <h3>COMPARE A / B</h3><div id="compare"></div>
-        </aside>
+          <div id="lab-controls-menu" class="controls-menu" hidden>
+            <nav class="family-nav" aria-label="Control families">
+              <button type="button" data-family="run" aria-controls="family-run" aria-selected="false">RUN</button>
+              <button type="button" data-family="drakken" aria-controls="family-drakken" aria-selected="false">DRAKKEN</button>
+              <button type="button" data-family="view" aria-controls="family-view" aria-selected="false">VIEW</button>
+              <button type="button" data-family="history" aria-controls="family-history" aria-selected="false">HISTORY</button>
+              <button type="button" data-family="inspect" aria-controls="family-inspect" aria-selected="false">INSPECT</button>
+            </nav>
 
-        <footer class="timeline">
-          <div class="timeline-controls">
-            <button id="play" class="primary-control">PLAY</button>
-            <label>SPEED <select id="speed"><option>.25</option><option selected>1</option><option>4</option><option>16</option><option>64</option></select></label>
-            <button id="fork">FORK B @ CURRENT TICK</button>
-            <button id="switchA" class="branch-button active-branch" aria-pressed="true">VIEW A</button>
-            <button id="switchB" class="branch-button" aria-pressed="false" disabled>VIEW B</button>
-            <button id="camera">RESET VIEW</button>
+            <section id="family-run" class="family-panel" hidden aria-label="Run controls">
+              <p class="section-kicker">RUN</p>
+              <div class="statusline" id="statusline" aria-label="Simulation status"></div>
+              <label>PLANET SEED <input id="seed" type="number" value="${DEFAULT_PLANET_SEED}" /></label>
+              <div class="run-actions">
+                <button id="play" class="primary-control">PLAY</button>
+                <label>SPEED <select id="speed"><option>.25</option><option selected>1</option><option>4</option><option>16</option><option>64</option></select></label>
+              </div>
+              <button id="regenerate" class="wide-control">REGENERATE / RESET</button>
+            </section>
+
+            <aside id="family-drakken" class="panel rack family-panel" hidden aria-label="Experiment rack">
+              <div class="panel-heading">
+                <div><p class="section-kicker">DRAKKEN</p><h2>EXPERIMENT RACK</h2></div>
+                <span class="mode-chip" id="modechip">PLACEMENT</span>
+              </div>
+              <div class="process-grid">
+                ${PROCESS_ORDER.map((id, n) => `
+                  <button class="process-card ${n === 0 ? 'selected' : ''}" data-process="${id}" aria-pressed="${n === 0}">
+                    <strong>${DRAKKEN_PROCESS_REGISTRY[id].displayName}</strong>
+                    <span><b>CANON FUNCTION</b>${DRAKKEN_PROCESS_REGISTRY[id].canonFunction}</span>
+                    <span><b>LAB MODEL</b>${DRAKKEN_PROCESS_REGISTRY[id].labModel}</span>
+                  </button>`).join('')}
+              </div>
+              <label>INTENSITY <input id="intensity" type="range" min="0.1" max="1" value="0.65" step="0.05"><output id="intensityOut">0.65</output></label>
+              <label>INFLUENCE RADIUS <input id="radius" type="range" min="4" max="40" value="18" step="1"><output id="radiusOut">18°</output></label>
+              <button id="placement" class="active wide-control" aria-pressed="true">PLACEMENT ARMED</button>
+              <div><h3>DEPLOYED INSTANCES</h3><div id="instances" class="dense-list"></div></div>
+            </aside>
+
+            <section id="family-view" class="family-panel" hidden aria-label="View controls">
+              <p class="section-kicker">VIEW</p>
+              <h2>LAYERS</h2>
+              <div class="layerbar" id="layerbar" aria-label="Planet inspection layers"></div>
+              <button id="camera" class="wide-control">RESET VIEW</button>
+            </section>
+
+            <footer id="family-history" class="timeline family-panel" hidden aria-label="History controls">
+              <p class="section-kicker">HISTORY</p>
+              <div class="timeline-controls">
+                <button id="fork">FORK B @ CURRENT TICK</button>
+                <button id="switchA" class="branch-button active-branch" aria-pressed="true">VIEW A</button>
+                <button id="switchB" class="branch-button" aria-pressed="false" disabled>VIEW B</button>
+              </div>
+              <label class="scrub">EXPERIMENT TIMELINE <input id="timeline" type="range" min="0" max="0" value="0"></label>
+              <div id="events" class="events" aria-label="Recent causal events"></div>
+            </footer>
+
+            <aside id="family-inspect" class="panel inspector family-panel" hidden aria-label="Planetary autopsy inspector">
+              <div class="panel-heading"><div><p class="section-kicker">INSPECT</p><h2>PLANETARY AUTOPSY</h2></div></div>
+              <div id="inspector"></div>
+              <h3>MATERIAL LEDGER</h3><div id="ledger" class="metric-grid"></div>
+              <h3>COMPARE A / B</h3><div id="compare"></div>
+            </aside>
           </div>
-          <label class="scrub">EXPERIMENT TIMELINE <input id="timeline" type="range" min="0" max="0" value="0"><output id="tickout">TICK 0</output></label>
-          <div id="events" class="events" aria-label="Recent causal events"></div>
-        </footer>
+        </section>
       </main>`;
 
     this.must('layerbar').innerHTML = LAYERS.map((layer, index) => `
@@ -122,6 +145,12 @@ export class LaboratoryApp {
   }
 
   private bind(): void {
+    this.must('lab-controls-launcher').addEventListener('click', () => this.toggleControls());
+    this.root.querySelectorAll<HTMLButtonElement>('[data-family]').forEach(button => button.addEventListener('click', () => {
+      this.openFamily(button.dataset.family as ControlFamily);
+    }));
+    document.addEventListener('keydown', this.onDocumentKeydown);
+
     this.must('regenerate').addEventListener('click', () => this.reset());
     this.must('quickstartDismiss').addEventListener('click', () => this.hideQuickStart());
 
@@ -185,6 +214,37 @@ export class LaboratoryApp {
       this.must('layerlegend').textContent = LAYER_LEGENDS[this.currentLayer];
     }));
   }
+
+  private toggleControls(force?: boolean): void {
+    this.controlsOpen = force ?? !this.controlsOpen;
+    if (!this.controlsOpen) this.activeFamily = null;
+    this.syncControlChrome();
+  }
+
+  private openFamily(family: ControlFamily): void {
+    this.controlsOpen = true;
+    this.activeFamily = family;
+    this.syncControlChrome();
+  }
+
+  private syncControlChrome(): void {
+    const launcher = this.must<HTMLButtonElement>('lab-controls-launcher');
+    launcher.setAttribute('aria-expanded', String(this.controlsOpen));
+    this.must('lab-controls-menu').hidden = !this.controlsOpen;
+    for (const family of CONTROL_FAMILIES) {
+      const selected = this.controlsOpen && this.activeFamily === family;
+      this.must(`family-${family}`).hidden = !selected;
+      const tab = this.root.querySelector(`[data-family="${family}"]`);
+      tab?.setAttribute('aria-selected', String(selected));
+      tab?.classList.toggle('active', selected);
+    }
+  }
+
+  private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Escape' || !this.controlsOpen) return;
+    event.preventDefault();
+    this.toggleControls(false);
+  };
 
   private loop = (now: number): void => {
     const dt = Math.min(0.1, (now - this.last) / 1000);
@@ -460,6 +520,7 @@ export class LaboratoryApp {
 
   dispose(): void {
     cancelAnimationFrame(this.frameId);
+    document.removeEventListener('keydown', this.onDocumentKeydown);
     this.must('viewport').removeEventListener('keydown', this.onViewportKeydown);
     this.renderer.dispose();
   }

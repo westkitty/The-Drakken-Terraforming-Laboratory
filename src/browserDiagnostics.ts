@@ -28,6 +28,7 @@ export interface BrowserDiagnostics {
     controlsDampingEnabled: boolean;
     gpuRenderer: string;
     gpuVendor: string;
+    starfield: { bands: number; vertices: number };
   };
 }
 
@@ -109,7 +110,8 @@ export function installBrowserDiagnostics(app: LaboratoryApp): () => void {
         scene: { objects, meshes, uniqueGeometries: geometries.size, uniqueMaterials: materials.size },
         controlsDampingEnabled: laboratoryRenderer.controls.enableDamping,
         gpuRenderer,
-        gpuVendor
+        gpuVendor,
+        starfield: laboratoryRenderer.starfieldSnapshot()
       }
     };
   };

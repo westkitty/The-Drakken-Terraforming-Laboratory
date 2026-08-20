@@ -2,6 +2,8 @@
 
 Use the default seed `19870615` for the first pass. The point is not to exhaust the laboratory; it is to verify that visible change, causal history, material flow, rewind, and branch divergence all feel like one coherent instrument.
 
+The planet occupies the viewport. Open the compact 12-dot **Laboratory controls** button to reach RUN, DRAKKEN, VIEW, HISTORY, and INSPECT. The scene should not resize when that menu opens.
+
 ## 1. Break the crust
 
 Select **Fault-Tongue**, set intensity near `0.85` and radius near `24°`, then deploy it on a continental region. Press **PLAY** at `16x` or `64x` and switch between **NORMAL** and **CRUST**.

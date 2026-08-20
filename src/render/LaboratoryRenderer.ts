@@ -2,14 +2,16 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GRID_HEIGHT, GRID_WIDTH, type LayerId } from '../simulation/types';
 import { uvToGridCell } from './gridUv';
+import { Starfield } from './Starfield';
 import type { PlanetState } from '../simulation/PlanetState';
 import type { SimulationEngine } from '../simulation/SimulationEngine';
 
 export class LaboratoryRenderer {
   readonly renderer: THREE.WebGLRenderer;
-  readonly camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  readonly camera = new THREE.PerspectiveCamera(42, 1, 0.1, 220);
   readonly controls: OrbitControls;
   private readonly scene = new THREE.Scene();
+  private readonly starfield: Starfield;
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
   private readonly geometry: THREE.SphereGeometry;
@@ -45,10 +47,12 @@ export class LaboratoryRenderer {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enablePan = false; this.controls.minDistance = 1.65; this.controls.maxDistance = 5.4;
     this.controls.enableDamping = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.scene.background = new THREE.Color(0x06090d);
+    this.scene.background = new THREE.Color(0x04070a);
     this.scene.add(new THREE.HemisphereLight(0xbddcff, 0x100d12, 1.05));
     const key = new THREE.DirectionalLight(0xffffff, 1.85); key.position.set(3, 2, 4); this.scene.add(key);
     const rim = new THREE.DirectionalLight(0x6caed1, 0.46); rim.position.set(-3, 0.7, -2.5); this.scene.add(rim);
+    this.starfield = new Starfield(engine.seed);
+    this.scene.add(this.starfield.group);
     this.geometry = new THREE.SphereGeometry(1, GRID_WIDTH, GRID_HEIGHT - 1);
     this.basePositions = new Float32Array(this.geometry.attributes.position!.array as Float32Array);
     const colors = new Float32Array(this.geometry.attributes.position!.count * 3); this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -70,6 +74,9 @@ export class LaboratoryRenderer {
   resetCamera(): void { this.camera.position.set(0, 0.4, 3.1); this.controls.target.set(0,0,0); this.controls.update(); }
   setSelected(index: number): void { if (this.selectedIndex === index) return; this.selectedIndex = index; this.updateSelectionMarker(); }
   setComparisonState(state: PlanetState | null): void { if (this.comparisonState === state) return; this.comparisonState = state; this.colorDirty = true; }
+  starfieldSnapshot(): { bands: number; vertices: number } {
+    return { bands: this.starfield.bandCount(), vertices: this.starfield.vertexCount() };
+  }
 
   render(): void {
     if (this.contextLost) return;
@@ -200,6 +207,7 @@ export class LaboratoryRenderer {
     this.selectionMarker.geometry.dispose(); (this.selectionMarker.material as THREE.Material).dispose();
     (this.atmosphere.geometry as THREE.BufferGeometry).dispose(); (this.atmosphere.material as THREE.Material).dispose();
     disposeGroup(this.ringGroup); this.ringGroup.clear();
+    this.starfield.dispose(); this.scene.remove(this.starfield.group);
     this.renderer.dispose(); this.renderer.domElement.remove();
   }
 }
