@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { CAMERA_HOME, STARFIELD_MIN_RADIUS } from './celestialSystem';
 import { SeededRandom, hashSeed } from '../simulation/SeededRandom';
 
-interface StarBand {
+export interface StarBand {
   name: 'near' | 'mid' | 'far';
   count: number;
   radiusMin: number;
@@ -11,10 +12,10 @@ interface StarBand {
   brightnessMax: number;
 }
 
-const BANDS: readonly StarBand[] = [
-  { name: 'near', count: 180, radiusMin: 8.5, radiusMax: 22, size: 0.08, brightnessMin: 0.70, brightnessMax: 0.94 },
-  { name: 'mid', count: 1100, radiusMin: 34, radiusMax: 92, size: 0.11, brightnessMin: 0.38, brightnessMax: 0.68 },
-  { name: 'far', count: 3200, radiusMin: 130, radiusMax: 340, size: 0.26, brightnessMin: 0.16, brightnessMax: 0.40 }
+export const STARFIELD_BANDS: readonly StarBand[] = [
+  { name: 'near', count: 180, radiusMin: STARFIELD_MIN_RADIUS, radiusMax: STARFIELD_MIN_RADIUS + 90, size: 1.12, brightnessMin: 0.70, brightnessMax: 0.94 },
+  { name: 'mid', count: 1100, radiusMin: STARFIELD_MIN_RADIUS + 160, radiusMax: STARFIELD_MIN_RADIUS + 340, size: 0.68, brightnessMin: 0.38, brightnessMax: 0.68 },
+  { name: 'far', count: 3200, radiusMin: STARFIELD_MIN_RADIUS + 440, radiusMax: STARFIELD_MIN_RADIUS + 800, size: 0.80, brightnessMin: 0.16, brightnessMax: 0.40 }
 ];
 
 export class Starfield {
@@ -30,14 +31,21 @@ export class Starfield {
 
   rebuild(seed: number): void {
     this.disposeContents();
-    for (const [index, band] of BANDS.entries()) {
+    let nearPositions: THREE.BufferAttribute | null = null;
+    let farPositions: THREE.BufferAttribute | null = null;
+    for (const [index, band] of STARFIELD_BANDS.entries()) {
       const rng = new SeededRandom(hashSeed(seed, 0x5154, index + 1));
       const object = createBand(band, rng);
       this.points.push(object);
       this.group.add(object);
       const position = object.geometry.getAttribute('position');
-      if (band.name === 'near' && position) this.nearAnchor.set(position.getX(0), position.getY(0), position.getZ(0));
-      if (band.name === 'far' && position) this.farAnchor.set(position.getX(0), position.getY(0), position.getZ(0));
+      if (band.name === 'near' && position) nearPositions = position as THREE.BufferAttribute;
+      if (band.name === 'far' && position) farPositions = position as THREE.BufferAttribute;
+    }
+    if (nearPositions && farPositions) {
+      const pair = selectAlignedAnchors(nearPositions, farPositions);
+      this.nearAnchor.copy(pair.near);
+      this.farAnchor.copy(pair.far);
     }
   }
 
@@ -110,4 +118,51 @@ function createBand(band: StarBand, rng: SeededRandom): THREE.Points {
   points.name = `starfield-${band.name}`;
   points.frustumCulled = false;
   return points;
+}
+
+function selectAlignedAnchors(
+  nearPositions: THREE.BufferAttribute,
+  farPositions: THREE.BufferAttribute
+): { near: THREE.Vector3; far: THREE.Vector3 } {
+  const preferred = new THREE.Vector3(-CAMERA_HOME.x, -CAMERA_HOME.y, -CAMERA_HOME.z).normalize();
+  const nearRank: { index: number; preference: number }[] = [];
+  for (let i = 0; i < nearPositions.count; i++) {
+    const nx = nearPositions.getX(i);
+    const ny = nearPositions.getY(i);
+    const nz = nearPositions.getZ(i);
+    const nLen = Math.hypot(nx, ny, nz);
+    if (nLen === 0) continue;
+    const preference = (nx * preferred.x + ny * preferred.y + nz * preferred.z) / nLen;
+    if (preference > 0.2) nearRank.push({ index: i, preference });
+  }
+  nearRank.sort((a, b) => b.preference - a.preference);
+  const candidates = nearRank.slice(0, 4);
+
+  let bestNear = candidates[0]?.index ?? 0;
+  let bestFar = 0;
+  let bestAlignment = Number.NEGATIVE_INFINITY;
+  for (const candidate of candidates) {
+    const nx = nearPositions.getX(candidate.index);
+    const ny = nearPositions.getY(candidate.index);
+    const nz = nearPositions.getZ(candidate.index);
+    const nLen = Math.hypot(nx, ny, nz);
+    for (let j = 0; j < farPositions.count; j++) {
+      const fx = farPositions.getX(j);
+      const fy = farPositions.getY(j);
+      const fz = farPositions.getZ(j);
+      const fLen = Math.hypot(fx, fy, fz);
+      if (fLen === 0) continue;
+      const alignment = (nx * fx + ny * fy + nz * fz) / (nLen * fLen);
+      if (alignment > bestAlignment) {
+        bestAlignment = alignment;
+        bestNear = candidate.index;
+        bestFar = j;
+      }
+    }
+  }
+
+  return {
+    near: new THREE.Vector3(nearPositions.getX(bestNear), nearPositions.getY(bestNear), nearPositions.getZ(bestNear)),
+    far: new THREE.Vector3(farPositions.getX(bestFar), farPositions.getY(bestFar), farPositions.getZ(bestFar))
+  };
 }

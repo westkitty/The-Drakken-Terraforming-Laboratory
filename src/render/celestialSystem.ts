@@ -5,7 +5,19 @@ export const CAMERA_SYSTEM = { x: 6, y: 4, z: 24 } as const;
 export const CAMERA_MIN_DISTANCE = 1.65;
 export const CAMERA_MAX_DISTANCE = 48;
 export const CAMERA_NEAR = 0.12;
-export const CAMERA_FAR = 420;
+export const SYSTEM_STAR_DISTANCE_MIN = 68;
+export const SYSTEM_STAR_DISTANCE_MAX = 80;
+export const SYSTEM_STAR_RADIUS = 3.15;
+export const SYSTEM_STAR_HALO_SCALE = 1.55;
+
+/** Furthest occupancy of local bodies plus camera zoom around the system star. */
+export const INTERACTIVE_SYSTEM_ENVELOPE =
+  SYSTEM_STAR_DISTANCE_MAX + SYSTEM_STAR_RADIUS * SYSTEM_STAR_HALO_SCALE + CAMERA_MAX_DISTANCE;
+/** Extra clearance so background stars stay outside that occupancy. */
+export const STARFIELD_ENVELOPE_MARGIN = CAMERA_MAX_DISTANCE;
+export const STARFIELD_MIN_RADIUS = INTERACTIVE_SYSTEM_ENVELOPE + STARFIELD_ENVELOPE_MARGIN;
+/** Far plane must clear the distant star band from every legal focus position. */
+export const CAMERA_FAR = 1600;
 
 export type CelestialKind = 'planet' | 'star' | 'moon' | 'minor';
 
@@ -40,7 +52,7 @@ export interface CelestialPose {
 
 export function defineCelestialSystem(seed: number): CelestialBodyDefinition[] {
   const rng = new SeededRandom(hashSeed(seed, 0xC3A1, 7));
-  const starDistance = rng.range(68, 80);
+  const starDistance = rng.range(SYSTEM_STAR_DISTANCE_MIN, SYSTEM_STAR_DISTANCE_MAX);
   const starYaw = rng.range(-2.85, -2.55);
   const starPitch = rng.range(0.12, 0.22);
   const star = {
@@ -56,7 +68,7 @@ export function defineCelestialSystem(seed: number): CelestialBodyDefinition[] {
       restPosition: { x: 0, y: 0, z: 0 }, color: 0x4a7a94, emissive: 0x000000
     },
     {
-      id: 'system-star', name: 'System Star', kind: 'star', radius: 3.15,
+      id: 'system-star', name: 'System Star', kind: 'star', radius: SYSTEM_STAR_RADIUS,
       orbitRadius: 0, inclination: 0, longitudeOfAscendingNode: 0, phase0: 0, periodTicks: 0,
       restPosition: star, color: 0xffe2b0, emissive: 0xffd089
     },

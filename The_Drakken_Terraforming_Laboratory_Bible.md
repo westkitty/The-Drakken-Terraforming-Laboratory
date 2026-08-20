@@ -999,4 +999,43 @@ Decisions:
 - Invisible pick proxies use depth testing so occluded bodies cannot be selected through the planet.
 - Do not merge this branch to `main`.
 
+### Entry 17 - Keep starfield outside system and harden body picking
+Summary:
+- Moved the background starfield entirely outside the interactive celestial/camera envelope and added a 16/24 CSS-pixel screen-space celestial pick fallback so small bodies remain selectable at SYSTEM VIEW without deploying.
+
+Reason / Intent:
+- Near stars previously occupied the same radii as moons, outer bodies, and camera travel. Off-center clicks on Outer Body 1 missed because world-space proxies shrank in screen space with distance.
+
+Files Changed:
+- `src/render/celestialSystem.ts`
+- `src/render/Starfield.ts`
+- `src/render/celestialPick.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/tests/starfield.test.ts`
+- `src/tests/celestialPick.test.ts`
+- `tests/browser/helpers.ts`
+- `tests/browser/celestial.spec.ts`
+- `tests/browser/planet-first.spec.ts`
+- `docs/VALIDATION.md`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 16 files / 63 tests PASS (`npx vitest run src/tests --testTimeout=20000`)
+Vite 7.3.5 production build: PASS
+npm run test:browser -- --workers=1: 18 / 18 PASS in 2.1 minutes
+STARFIELD_MIN_RADIUS 180.8825 outside envelope 132.8825
+CAMERA_FAR 1600
+Pick radii: 16 px fine / 24 px coarse
+Off-center browser click: 14 CSS pixels
+```
+
+Decisions:
+- Do not change orbital radii or system-star distance to accommodate the starfield.
+- Occlusion is proven by the shared pick helper and a deterministic planet-first ray, not by searching live orbits.
+- Do not merge this branch to `main`.
+
 

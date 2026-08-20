@@ -2,9 +2,11 @@ import { expect, test } from '@playwright/test';
 import {
   captureBrowserErrors,
   clickCelestial,
+  clickCelestialOffsetPx,
   clickFocusPlanet,
   clickGlobe,
   clickSystemView,
+  closeControls,
   diagnostics,
   openControlFamily,
   openLab,
@@ -86,7 +88,8 @@ test('visible celestial bodies remain selectable slightly off their projected ce
   const before = (await diagnostics(page)).processCount;
   await runUntilTick(page, 48);
   await clickSystemView(page);
-  await clickCelestial(page, 'outer-1', 0.012);
+  await closeControls(page);
+  await clickCelestialOffsetPx(page, 'outer-1', 14, 0);
   const after = await diagnostics(page);
   expect(after.renderer.celestial.selectedId).toBe('outer-1');
   expect(after.processCount).toBe(before);

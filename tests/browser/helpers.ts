@@ -201,6 +201,19 @@ export async function clickCelestial(page: Page, id: string, offsetRatio = 0): P
   await clickGlobe(page, point.x + offsetRatio, point.y);
 }
 
+export async function clickCelestialOffsetPx(page: Page, id: string, dxPx: number, dyPx = 0): Promise<void> {
+  await expect.poll(async () => {
+    const point = (await diagnostics(page)).renderer.celestial.projected[id];
+    return Boolean(point?.visible && point.frontmost);
+  }, { timeout: 8_000 }).toBe(true);
+  const canvas = page.locator('#viewport canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('Canvas has no bounding box');
+  const point = (await diagnostics(page)).renderer.celestial.projected[id];
+  if (!point) throw new Error(`Missing projection for ${id}`);
+  await page.mouse.click(box.x + box.width * point.x + dxPx, box.y + box.height * point.y + dyPx);
+}
+
 export async function clickRegenerate(page: Page): Promise<void> {
   await openControlFamily(page, 'run');
   await page.locator('#regenerate').click();

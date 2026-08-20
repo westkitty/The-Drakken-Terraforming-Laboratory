@@ -85,12 +85,24 @@ test('starfield near stars exhibit more projected parallax than far stars under 
   const home = await diagnostics(page);
   const homeNear = home.renderer.starfield.anchors.near;
   const homeFar = home.renderer.starfield.anchors.far;
-  expect(Math.hypot(homeNear.world.x, homeNear.world.y, homeNear.world.z)).toBeLessThan(
-    Math.hypot(homeFar.world.x, homeFar.world.y, homeFar.world.z)
-  );
+  const nearLen = Math.hypot(homeNear.world.x, homeNear.world.y, homeNear.world.z);
+  const farLen = Math.hypot(homeFar.world.x, homeFar.world.y, homeFar.world.z);
+  expect(nearLen).toBeLessThan(farLen);
+  const alignment = (
+    homeNear.world.x * homeFar.world.x +
+    homeNear.world.y * homeFar.world.y +
+    homeNear.world.z * homeFar.world.z
+  ) / (nearLen * farLen);
+  expect(alignment).toBeGreaterThan(0.995);
+  expect(inFrontOfCamera(homeNear.world, { x: 0, y: 0.4, z: 3.1 })).toBe(true);
+  expect(inFrontOfCamera(homeFar.world, { x: 0, y: 0.4, z: 3.1 })).toBe(true);
+  expect(Number.isFinite(homeNear.projected.x)).toBe(true);
+  expect(Number.isFinite(homeFar.projected.x)).toBe(true);
 
   await clickSystemView(page);
   const system = await diagnostics(page);
+  expect(inFrontOfCamera(homeNear.world, { x: 6, y: 4, z: 24 })).toBe(true);
+  expect(inFrontOfCamera(homeFar.world, { x: 6, y: 4, z: 24 })).toBe(true);
   const nearShift = Math.hypot(
     system.renderer.starfield.anchors.near.projected.x - homeNear.projected.x,
     system.renderer.starfield.anchors.near.projected.y - homeNear.projected.y
@@ -104,3 +116,16 @@ test('starfield near stars exhibit more projected parallax than far stars under 
   expect(system.renderer.render.points).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
+
+function inFrontOfCamera(
+  world: { x: number; y: number; z: number },
+  camera: { x: number; y: number; z: number }
+): boolean {
+  const lookX = -camera.x;
+  const lookY = -camera.y;
+  const lookZ = -camera.z;
+  const toX = world.x - camera.x;
+  const toY = world.y - camera.y;
+  const toZ = world.z - camera.z;
+  return lookX * toX + lookY * toY + lookZ * toZ > 0;
+}
