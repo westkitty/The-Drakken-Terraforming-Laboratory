@@ -1,7 +1,7 @@
 import { SeededRandom, hashSeed } from '../simulation/SeededRandom';
 
 export const CAMERA_HOME = { x: 0, y: 0.4, z: 3.1 } as const;
-export const CAMERA_SYSTEM = { x: 9.6, y: 11.2, z: 21.5 } as const;
+export const CAMERA_SYSTEM = { x: 6, y: 4, z: 24 } as const;
 export const CAMERA_MIN_DISTANCE = 1.65;
 export const CAMERA_MAX_DISTANCE = 48;
 export const CAMERA_NEAR = 0.12;
@@ -40,9 +40,9 @@ export interface CelestialPose {
 
 export function defineCelestialSystem(seed: number): CelestialBodyDefinition[] {
   const rng = new SeededRandom(hashSeed(seed, 0xC3A1, 7));
-  const starDistance = rng.range(72, 88);
-  const starYaw = rng.range(-2.35, -0.85);
-  const starPitch = rng.range(0.22, 0.4);
+  const starDistance = rng.range(68, 80);
+  const starYaw = rng.range(-2.85, -2.55);
+  const starPitch = rng.range(0.12, 0.22);
   const star = {
     x: Math.cos(starPitch) * Math.sin(starYaw) * starDistance,
     y: Math.sin(starPitch) * starDistance,

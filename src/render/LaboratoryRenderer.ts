@@ -20,8 +20,11 @@ export class LaboratoryRenderer {
   private readonly keyLight = new THREE.DirectionalLight(0xffffff, 1.72);
   private focusId = 'primary';
   private readonly cameraOffset = new THREE.Vector3();
+  private readonly projectNdc = new THREE.Vector3();
+  private readonly projectDir = new THREE.Vector3();
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
+  private pickTargets: THREE.Object3D[] = [];
   private readonly geometry: THREE.SphereGeometry;
   private readonly material: THREE.MeshStandardMaterial;
   private readonly mesh: THREE.Mesh;
@@ -72,6 +75,7 @@ export class LaboratoryRenderer {
     const colors = new Float32Array(this.geometry.attributes.position!.count * 3); this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.03 });
     this.mesh = new THREE.Mesh(this.geometry, this.material); this.scene.add(this.mesh);
+    this.pickTargets = [this.mesh, ...this.celestial.pickables()];
     this.selectionMarker.visible = false; this.selectionMarker.renderOrder = 4; this.scene.add(this.selectionMarker);
     this.atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.025, 64, 32), new THREE.MeshBasicMaterial({ color: 0x74a8cc, transparent: true, opacity: 0.08, side: THREE.BackSide, depthWrite: false })); this.scene.add(this.atmosphere);
     this.scene.add(this.ringGroup);
@@ -233,7 +237,7 @@ export class LaboratoryRenderer {
     if (rect.width <= 0 || rect.height <= 0) return;
     this.pointer.set(((clientX-rect.left)/rect.width)*2-1, -((clientY-rect.top)/rect.height)*2+1);
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects([this.mesh, ...this.celestial.pickables()], true);
+    const hits = this.raycaster.intersectObjects(this.pickTargets, true);
     const hit = hits[0];
     if (!hit) return;
     const celestialId = this.celestial.bodyIdFromObject(hit.object);
@@ -259,23 +263,21 @@ export class LaboratoryRenderer {
 
   private projectBodies(tick: number): Record<string, { x: number; y: number; visible: boolean; frontmost: boolean }> {
     const projected: Record<string, { x: number; y: number; visible: boolean; frontmost: boolean }> = {};
-    const ndc = new THREE.Vector3();
+    const origin = this.camera.position;
     for (const definition of this.celestial.definitions) {
       if (definition.kind === 'planet') continue;
       const pose = this.celestial.pose(definition.id, tick);
       if (!pose) continue;
-      ndc.set(pose.x, pose.y, pose.z).project(this.camera);
-      const visible = ndc.z > -1 && ndc.z < 1 && Math.abs(ndc.x) <= 1.15 && Math.abs(ndc.y) <= 1.15;
-      const origin = this.camera.position;
-      const target = new THREE.Vector3(pose.x, pose.y, pose.z);
-      const direction = target.clone().sub(origin);
-      const distance = direction.length();
-      direction.normalize();
-      this.raycaster.set(origin, direction);
-      const hits = this.raycaster.intersectObjects([this.mesh, ...this.celestial.pickables()], true);
+      this.projectNdc.set(pose.x, pose.y, pose.z).project(this.camera);
+      const visible = this.projectNdc.z > -1 && this.projectNdc.z < 1 && Math.abs(this.projectNdc.x) <= 1.15 && Math.abs(this.projectNdc.y) <= 1.15;
+      const x = (this.projectNdc.x + 1) / 2;
+      const y = (1 - this.projectNdc.y) / 2;
+      const distance = this.projectDir.set(pose.x - origin.x, pose.y - origin.y, pose.z - origin.z).length();
+      this.raycaster.set(origin, this.projectDir.normalize());
+      const hits = this.raycaster.intersectObjects(this.pickTargets, true);
       const first = hits[0];
       const frontmost = Boolean(first && this.celestial.bodyIdFromObject(first.object) === definition.id && first.distance <= distance + definition.radius);
-      projected[definition.id] = { x: (ndc.x + 1) / 2, y: (1 - ndc.y) / 2, visible, frontmost };
+      projected[definition.id] = { x, y, visible, frontmost };
     }
     return projected;
   }

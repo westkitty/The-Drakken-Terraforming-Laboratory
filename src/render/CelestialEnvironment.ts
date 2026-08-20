@@ -12,9 +12,10 @@ export class CelestialEnvironment {
   readonly definitions: readonly CelestialBodyDefinition[];
   private readonly meshes = new Map<string, THREE.Mesh>();
   private readonly glow = new Map<string, THREE.Mesh>();
+  private readonly pickableList: THREE.Object3D[] = [];
   private readonly marker: THREE.Mesh;
   private selectedId: string | null = null;
-  private tick = 0;
+  private tick = Number.NaN;
 
   constructor(seed: number) {
     this.group.name = 'celestial-environment';
@@ -23,6 +24,7 @@ export class CelestialEnvironment {
       if (definition.kind === 'planet') continue;
       const mesh = createBodyMesh(definition);
       this.meshes.set(definition.id, mesh);
+      this.pickableList.push(mesh);
       this.group.add(mesh);
       if (definition.kind === 'star') {
         const halo = createStarHalo(definition.radius);
@@ -41,6 +43,7 @@ export class CelestialEnvironment {
   }
 
   setTick(tick: number): void {
+    if (tick === this.tick) return;
     this.tick = tick;
     for (const definition of this.definitions) {
       const mesh = this.meshes.get(definition.id);
@@ -54,7 +57,7 @@ export class CelestialEnvironment {
   }
 
   pickables(): THREE.Object3D[] {
-    return [...this.meshes.values()];
+    return this.pickableList;
   }
 
   bodyIdFromObject(object: THREE.Object3D | null): string | null {

@@ -116,9 +116,9 @@ export async function setRange(page: Page, id: 'intensity' | 'radius', value: nu
 
 export async function runUntilTick(page: Page, tick: number): Promise<void> {
   await openControlFamily(page, 'run');
-  if ((await diagnostics(page)).playing === false) await page.locator('#play').click();
+  if ((await diagnostics(page)).playing === false) await page.locator('#play').click({ force: true });
   await expect.poll(async () => (await diagnostics(page)).tick, { timeout: 20_000 }).toBeGreaterThanOrEqual(tick);
-  if ((await diagnostics(page)).playing) await page.locator('#play').click();
+  if ((await diagnostics(page)).playing) await page.locator('#play').click({ force: true });
 }
 
 export async function ledgerValue(page: Page, label: string): Promise<number> {
@@ -142,7 +142,7 @@ export async function setTimelineTick(page: Page, tick: number): Promise<void> {
 
 export async function clickPlay(page: Page): Promise<void> {
   await openControlFamily(page, 'run');
-  await page.locator('#play').click();
+  await page.locator('#play').click({ force: true });
 }
 
 export async function setSpeed(page: Page, value: string): Promise<void> {

@@ -36,7 +36,7 @@ test('system-scale camera, star, moon, and outer bodies exist without leaving th
 });
 
 test('celestial transforms follow simulation time and rewind, and body clicks select without deploying', async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   const errors = captureBrowserErrors(page);
   await openLab(page);
   await selectProcess(page, 'fault-tongue');

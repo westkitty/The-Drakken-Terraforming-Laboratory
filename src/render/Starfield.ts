@@ -91,7 +91,8 @@ function createBand(band: StarBand, rng: SeededRandom): THREE.Points {
     size: band.size,
     sizeAttenuation: true,
     vertexColors: true,
-    depthWrite: false
+    depthWrite: true,
+    depthTest: true
   });
   const points = new THREE.Points(geometry, material);
   points.name = `starfield-${band.name}`;

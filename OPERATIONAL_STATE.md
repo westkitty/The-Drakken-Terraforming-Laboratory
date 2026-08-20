@@ -7,12 +7,12 @@
   "project_name": "The Drakken Terraforming Laboratory",
   "project_root": "/mnt/data/The-Drakken-Terraforming-Laboratory",
   "artifact_path": null,
-  "state_revision": 8,
-  "last_updated": "2026-08-20T00:12:00-04:00",
+  "state_revision": 9,
+  "last_updated": "2026-08-20T01:22:00-04:00",
   "current_baseline": {
-    "identity": "planet-first-space-system Phase 2 celestial environment over 99501fcfaf11b7b6eb79b9f182de73de78f04c42",
+    "identity": "planet-first-space-system final integration QA over e1c05fa36acb118dd6dc0ecc4cd2b619207c37c2",
     "state": "partially-verified",
-    "last_verified": "2026-08-20T00:12:00-04:00"
+    "last_verified": "2026-08-20T01:22:00-04:00"
   },
   "scope_boundaries": [
     "Initial browser-based deterministic Three.js Drakken terraforming laboratory prototype"
@@ -35,14 +35,13 @@
 
 ## 2. Current Baseline
 
-- **Application source:** feature branch `planet-first-space-system` continuing Phase 1 commit `99501fcfaf11b7b6eb79b9f182de73de78f04c42`. Authoritative PlanetState remains at the origin and is not orbited around the star.
-- **Presentation:** planet-first default framing; 12-dot launcher; FOCUS PLANET / HOME and SYSTEM VIEW in VIEW; celestial inspect in INSPECT.
-- **Celestial environment:** seeded system star mesh, Primary Moon, Outer Body 1, Outer Body 2. Orbital transforms derive from simulation tick only. Directional key light aligns with the visible star.
-- **Camera:** minDistance 1.65 retained; maxDistance 48; near 0.12; far 420. Default camera still features the planet.
-- **Dependency-backed validation:** typecheck PASS; 15 Vitest files / 54 tests PASS; Vite `7.3.5` production build PASS. No package/lock changes.
-- **Browser path:** local Google Chrome 151; Playwright `15/15` PASS with `--workers=1`, including prior first-look/planet-first journeys plus celestial zoom, selection-without-deploy, tick-driven rewind, and regenerate resource-count restoration.
-- **Runtime lifecycle:** three regenerate cycles return unique geometry/material counts to baseline.
-- **Overall state:** PARTIAL / partially verified. Branch is not merged to `main`.
+- **Application source:** feature branch `planet-first-space-system` after final integration QA. PlanetState remains at the origin.
+- **Presentation:** default full-viewport planet; 12-dot launcher closed; system star visible in default and system views; starfield depth-tested so it does not draw through the globe.
+- **Celestial environment:** tick-driven Primary Moon and two outer bodies; body pick selects and does not deploy; FOCUS PLANET / SYSTEM VIEW / FOCUS SELECTED in VIEW.
+- **Dependency-backed validation:** `npm ci` PASS; typecheck PASS; 15 Vitest files / 55 tests PASS; Vite 7.3.5 build PASS.
+- **Browser path:** local Chrome 151; 16 Playwright tests PASS (`--workers=1`), including seven objective QA screenshot states.
+- **Runtime lifecycle:** 3 regenerates restore unique geometries/materials (12/12); heap delta about +377 kB. Local Metal frame times are not SwiftShader/target-hardware proof.
+- **Overall state:** PARTIAL / partially verified. Not merged to `main`.
 
 ## 3. Artifact Contract
 
@@ -239,3 +238,10 @@
 - **Added:** tick-driven celestial model/helper; system star; Primary Moon; two outer bodies; expanded camera/starfield; body picking that cannot deploy; FOCUS PLANET / SYSTEM VIEW / FOCUS SELECTED.
 - **Local validation:** typecheck PASS; 15 files / 54 tests PASS; Vite 7.3.5 build PASS; Chrome Playwright 15/15 PASS (`--workers=1`).
 - **Deliberate non-change:** PlanetState stays at the origin; no second clock; no new npm dependencies.
+
+### Revision 9 — 2026-08-20T01:22:00-04:00
+
+- **Branch:** `planet-first-space-system` final integration/QA. Not merged.
+- **Bounded repair:** starfield depth write; skip unchanged-tick orbit updates; cache pickables; place the system star in the default/system frustum; SYSTEM VIEW camera `(6, 4, 24)`.
+- **Evidence:** 55 unit tests; 16 Chrome Playwright tests; QA screenshots qa-01 through qa-07; regenerate unique geometry 12/12.
+- **Limitation:** full 16-test Playwright job was run in split reruns after overlay/play click timeouts on a loaded machine; SwiftShader/target-hardware FPS remains unverified.

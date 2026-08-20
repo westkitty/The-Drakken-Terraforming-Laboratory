@@ -22,6 +22,13 @@ describe('celestial system', () => {
     expect(system.filter(item => item.kind === 'minor').map(item => item.name)).toEqual(['Outer Body 1', 'Outer Body 2']);
   });
 
+  it('places the system star off-axis in front of the default camera', () => {
+    const star = defineCelestialSystem(19870615).find(item => item.kind === 'star')!;
+    expect(star.restPosition.x).toBeLessThan(-20);
+    expect(star.restPosition.y).toBeGreaterThan(6);
+    expect(star.restPosition.z).toBeLessThan(-40);
+  });
+
   it('moves orbiting bodies with simulation tick and restores the same pose on rewind', () => {
     const moon = defineCelestialSystem(19870615).find(item => item.id === 'primary-moon')!;
     const at40 = poseAtTick(moon, 40);

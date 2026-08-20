@@ -146,3 +146,31 @@ The automated first-look path is verified in Chrome. These items remain outside 
 - sustained thermals and long-session behavior on representative physical devices.
 
 The next useful action is the user's own first look using [`FIRST_LOOK.md`](FIRST_LOOK.md). Further pre-look source polishing is not justified without new evidence from that inspection.
+
+## Planet-first celestial integration QA — 2026-08-20
+
+Local Chrome `151` on branch `planet-first-space-system` after a bounded repair pass (starfield depth write, unchanged-tick orbit skip, cached pickables, star placement in the default/system frustum).
+
+Executed:
+
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 15 files / 55 tests PASS
+Vite 7.3.5 production build: PASS
+Playwright Chrome --workers=1: 16 tests PASS in split reruns after overlay click timeouts
+```
+
+Objective screenshot states captured to `browser-evidence/screenshots/`:
+
+- `qa-01-default-planet-view` — menu closed, planet dominant, starfield, visible system star
+- `qa-02-menu-open` — VIEW overlay without taking over the scene
+- `qa-03-system-view` — planet, moon, outer bodies, star, deeper starfield
+- `qa-04-moon-focused`
+- `qa-05-outer-focused`
+- `qa-06-drakken-active` — Fault-Tongue deploy on the primary planet
+- `qa-07-narrow-viewport` — 390 x 844, no global overflow, planet remains primary
+
+Lifecycle smoke (local Metal, not a SwiftShader/target-hardware FPS claim): unique geometries 12 baseline / 12 after 3 regenerates; heap delta about +377 kB; latest simulation step about 1.34 ms.
+
+This does not replace human visual taste, physical-device thermals, or a single uninterrupted 16-test Playwright job on a quiet machine.

@@ -918,3 +918,42 @@ Decisions:
 - Neutral names: Primary Moon, Outer Body 1, Outer Body 2.
 - Do not merge this branch to `main` in this phase.
 
+### Entry 15 - Final planet-first integration QA
+Summary:
+- Proved Phases 1 and 2 against planet-first, system-scale, interaction, 12-dot, and lifecycle oracles.
+- One bounded repair: starfield writes depth so stars do not draw through the planet; celestial orbits skip unchanged ticks; pickables are cached; the system star and SYSTEM VIEW camera were adjusted so the star is on-screen in default and system frames.
+
+Reason / Intent:
+- Close the redesign on evidence rather than adding another feature phase.
+
+Files Changed:
+- `src/render/Starfield.ts`
+- `src/render/CelestialEnvironment.ts`
+- `src/render/LaboratoryRenderer.ts`
+- `src/render/celestialSystem.ts`
+- `src/tests/celestialSystem.test.ts`
+- `tests/browser/final-qa.spec.ts`
+- `tests/browser/celestial.spec.ts`
+- `tests/browser/first-look.spec.ts`
+- `tests/browser/helpers.ts`
+- `docs/FIRST_LOOK.md`
+- `docs/VALIDATION.md`
+- `OPERATIONAL_STATE.md`
+- `The_Drakken_Terraforming_Laboratory_Bible.md`
+
+Validation / Evidence:
+```text
+npm ci: PASS
+typecheck: PASS
+Vitest: 15 files / 55 tests PASS
+Vite 7.3.5 production build: PASS
+Chrome Playwright: 16 tests PASS (--workers=1, split reruns)
+QA screenshots: qa-01 .. qa-07
+Regenerate unique geometries: 12 baseline / 12 settled
+```
+
+Decisions:
+- Do not restyle beyond the bounded visibility/lifecycle repairs.
+- Do not merge to `main`.
+
+

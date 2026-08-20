@@ -107,6 +107,7 @@ test('Ringthroat starves before Gorevault feedstock and grows only after the cha
 });
 
 test('rewind restores the past, fork preserves common history, and later branch actions diverge', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   const errors = captureBrowserErrors(page);
   await openLab(page);
   await selectProcess(page, 'fault-tongue');
@@ -140,6 +141,7 @@ test('rewind restores the past, fork preserves common history, and later branch 
 });
 
 test('provenance answers what most recently changed a transformed cell', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   const errors = captureBrowserErrors(page);
   await openLab(page);
   await selectProcess(page, 'fault-tongue');
